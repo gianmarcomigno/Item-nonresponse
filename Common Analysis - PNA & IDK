@@ -1,3 +1,5 @@
+#In the first part of the code, the data are imported and both the participants and the relevant variables of interest have been subset.
+
 # Import libriaries
 libraries <- c("data.table", "reshape2", "ggplot2", "plotly", "spatstat", 
                "stringr", "plyr", "dplyr", "psych", "GPArotation", "lavaan", 
@@ -156,4 +158,4 @@ manhattan_plot <- function(name_file, col = c("gray10", "gray60"), title='title'
   #col= c("#C7E9C0", "#A1D99B", "#74C476", "#41AB5D", "#238B45", "#006D2C", "#00441B")) 
   qqman::manhattan(h, chr="CHR", bp="BP", p="P", snp = "SNP",suggestiveline = F, 
                    annotatePval = 5e-8, col = col, title=title)
-}
+} 
