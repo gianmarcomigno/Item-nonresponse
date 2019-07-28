@@ -1,0 +1,303 @@
+########################################################
+#                                                      #
+#                 -1: "I don't know"                   #
+#                                                      #
+########################################################
+# Analysis on the items with the "I don't know" option.
+
+# Subsetting and recoding
+alldata <- readRDS('alldata.rds', refhook = NULL) 
+not1 <- c(names(which(colSums(alldata==-1)==0)))
+alldata2 <- alldata[,!colnames(alldata) %in% c(not1,"f.1647.0.0")]
+alldata2 <- ifelse(alldata2==-1,1,0)
+colnames(alldata2) <- substr(lab_vec[match(colnames(alldata2), paste0("f.",lab_vec$FieldID,".0.0")),]$Field,0, 25)
+
+# GWAS specifically for highest IDK: 
+highest_IDK <- cbind(alldata$f.userId, alldata2[,"f.1737.0.0"])
+colnames(highest_IDK) <- c("s","phen")
+write.table(highest_IDK, file='highest_IDK.tsv', quote=FALSE, sep='\t', col.names = NA)
+highest_IDK <- read.table(file='highest_IDK.tsv')
+
+# Manhattan plot
+manhattan_plot('gwas_highest_IDK.tsv.bgz')
+sunburn <- read.table('gwas_highest_IDK.tsv.bgz', sep = "\t", header=T)
+
+########################################################
+#          FA BEFORE PRUNING - ALL ITEMS               #
+########################################################
+# Uk Biobank info
+info <- read.csv('Data_Dictionary_Showcase.csv')
+infos <- info[c(grep("UK Biobank assessment centre",info$Field), grep("Touchscreen", info$Path)),c("FieldID","Field")]
+
+lab_vec <- infos[paste0("f.",infos$FieldID,".0.0") %in% colnames(alldata),c("Field","FieldID")]
+labvec <- lab_vec[match(names(alldata), paste0("f.",lab_vec$FieldID,".0.0")),]
+
+colnames(alldata2) <- lab_vec[match(colnames(alldata2), paste0("f.",lab_vec$FieldID,".0.0")),]$Field
+
+# Splitting in training set and testing set (80:20) for EFA and CFA (before mod ind) respectively
+set.seed(42) # Meaning of life: 42
+
+# Numeric for efa, factor for cfa
+#IDK_pruned_sum <- as.data.frame(apply(IDK_pruned_sum, 2, as.character))
+#IDK_pruned_sum <- as.data.frame(apply(IDK_pruned_sum, 2, as.numeric))
+alldata2 <- as.data.frame(alldata2)
+alldata2_ind <- sample(seq_len(nrow(alldata2)), size = floor(0.80 * nrow(alldata2)))
+alldata2_train <- alldata2[alldata2_ind, ] # EFA
+alldata2_test <- alldata2[-alldata2_ind, ] # CFA
+
+# FA
+alldata2_corr <- tetrachoric(alldata2)$rho
+
+ev <- eigen(alldata2_corr) # get eigenvalues
+plot(ev$values[1:15], type = "l")
+abline(h=1, col = "red", lty = 2)
+
+fa3 <- fa(r= alldata2_corr,nfactors=3,fm="ols", n.obs=nrow(alldata2_train),
+          rotate="biquartimin", residuals = F, cor='tet')
+print(fa3$loadings, cutoff = 0.25)
+
+# Heatmap Tetrachoric correlation
+alldata2_corr <- tetrachoric(alldata2)$rho
+rownames(alldata2_corr) <- colnames(alldata2_corr) <- lab_vec[match(colnames(alldata2_corr), paste0("f.",lab_vec$FieldID,".0.0")),]$Field 
+rownames(alldata2_corr) <- colnames(alldata2_corr) <- substr(lab_vec[match(colnames(alldata2_corr), paste0("f.",lab_vec$FieldID,".0.0")),]$Field,0, 25)
+plot(hclust(dist(alldata2_corr)))
+
+interactive_matrix(alldata2_corr, scale = "Tetrachoric correlation", main = "IDK tetrachoric correlation heatmap")
+
+########################################################
+#              FACTOR ANALYSIS - 1 FA                  #
+########################################################
+# CFA 1 fa *before* pruning (84 items)
+
+model1 <- '
+g =~ f.21000.0.0 + f.6139.0.0 + f.699.0.0 + f.864.0.0 + f.884.0.0 + f.904.0.0 + f.1031.0.0 + f.1050.0.0 +
+f.1060.0.0 + f.1070.0.0 + f.1080.0.0 + f.1090.0.0 + f.1100.0.0 + f.1110.0.0 + f.1160.0.0 + f.1170.0.0 +
+f.1180.0.0 + f.1210.0.0 + f.1220.0.0 + f.1289.0.0 + f.1299.0.0 + f.1309.0.0 + f.1319.0.0 + f.1329.0.0 +
+f.1339.0.0 + f.1349.0.0 + f.1359.0.0 + f.1369.0.0 + f.1379.0.0 + f.1389.0.0 + f.1418.0.0 + f.1428.0.0 +
+f.1438.0.0 + f.1458.0.0 + f.1488.0.0 + f.1498.0.0 + f.1528.0.0 + f.1548.0.0 + f.1647.0.0 + f.1677.0.0 +
+f.1687.0.0 + f.1697.0.0 + f.1717.0.0 + f.1727.0.0 + f.1737.0.0 + f.1747.0.0 + f.1757.0.0 + f.1767.0.0 +
+f.1920.0.0 + f.1930.0.0 + f.1940.0.0 + f.1950.0.0 + f.1960.0.0 + f.1970.0.0 + f.1980.0.0 + f.1990.0.0 +
+f.2000.0.0 + f.2010.0.0 + f.2020.0.0 + f.2030.0.0 + f.2040.0.0 + f.2050.0.0 + f.2060.0.0 + f.2070.0.0 +
+f.2080.0.0 + f.2090.0.0 + f.2100.0.0 + f.2110.0.0 + f.2178.0.0 + f.2188.0.0 + f.6146.0.0 + f.2267.0.0 +
+f.2277.0.0 + f.2306.0.0 + f.2316.0.0 + f.2335.0.0 + f.2345.0.0 + f.2443.0.0 + f.2453.0.0 + f.2463.0.0 +
+f.2473.0.0 + f.2492.0.0 + f.6154.0.0 + f.2247.0.0 
+'
+fit1_IDK <- cfa(model1, 
+                data = alldata2, sample.nobs = nrow(alldata2),
+                estimator="WLSMV", std.lv = TRUE,
+                ordered = colnames(alldata2))
+saveRDS(fit1_IDK, file = "fit1_IDK.rds")
+fit1_IDK <- readRDS(file = "fit1_IDK.rds")
+
+# Factor scores from 1 factor CFA *before* pruning (84 items) 
+factscores1_IDK <- lavPredict(fit1_IDK)
+metric3_IDK <- cbind(alldata$f.userId, factscores1_IDK)
+colnames(metric3_IDK) <- c("s","phen")
+write.table(metric3_IDK, file='metric3_IDK.tsv', quote=FALSE, sep='\t', col.names = NA)
+metric3_IDK <- read.table(file='metric3_IDK.tsv')
+
+# Matrix rg out
+rg_metric3_IDK_clean <- out_matrix_rg(name_file="rg_metric3_IDK.csv")
+rg_metric3_IDK_clean_strong <- rbind(head(rg_metric3_IDK_clean,5),tail(rg_metric3_IDK_clean,5))
+
+# Alldata - extract off the general latent factor showing the substructure
+#alldata2_corr <- mixedCor(alldata2_r)$rho
+fa1 <- fa(r= alldata2,nfactors=1,fm="ols", n.obs=nrow(alldata2),
+          rotate="biquartimin", residuals = TRUE, cor='tet')
+
+# Heatmap residuals 1 factor fa():
+interactive_matrix(fa7$residual, scale= 'Residuals intensity', main = 'Heatmap residuals after 1 factor FA - IDK')
+
+# Dendrogram cluster residuals' distance ("dendrogram_residuals_1fa_IDK.pdf")
+plot(hclust(dist(1-fa1$residual)), cex=0.62, xlab=NA, 
+     main = "Cluster Dendrogram on (1-residuals) from FA 1 factor")
+abline(h=.775, col= "red", lty = 4)
+
+plot(cut(as.dendrogram(hclust(dist(1-fa2$residual))), h=.775)$upper, main="Upper tree of cut at h=1")
+labels(cut(as.dendrogram(hclust(dist(1-fa2$residual)), h=7)$lower[[25]], main="branch of lower tree with cut at h=1"))
+
+rownames(fa2$residual) <- colnames(fa2$residual) <- lab_vec[match(colnames(fa2$residual), paste0("f.",lab_vec$FieldID,".0.0")),]$Field 
+
+# Eigenvalues
+ev <- eigen(alldata2_tetra_corr) # get eigenvalues
+plot(ev$values[1:15], type = "l")
+abline(h=1, col = "red", lty = 2)
+
+# Plot
+plot(density(alldata2[, ncol(alldata2)]), xlim=c(0,19), main = 'distribution plot')
+barplot(alldata2[, ncol(alldata2)], xlim=c(0,19), main = 'distribution plot')
+
+########################################################
+#               MISSINGNESS METRIC IKD                 #
+########################################################
+
+# 1 - Simple count of I don't know (IDK) per individual *before* pruning (84 items) 
+metric1_IDK <- cbind(alldata$f.userId, rowSums(alldata2))
+colnames(metric1_IDK) <- c("s","phen")
+write.table(metric1_IDK, file='metric1_IDK.tsv', quote=FALSE, sep='\t', col.names = NA)
+metric1_IDK <- read.table(file='metric1_IDK.tsv')
+
+# Matrix rg out
+rg_metric1_IDK_clean <- out_matrix_rg(name_file="rg_metric1_IDK.csv")
+rg_metric1_IDK_clean_strong <- rbind(head(rg_metric1_IDK_clean,5),tail(rg_metric1_IDK_clean,5))
+
+########################################################
+#                     PRUNING 1                        #
+########################################################
+col_names_IDK <- c("f.21000.0.0", "f.6139.0.0", "branch_34", "branch_37", "branch_39", "f.1100.0.0", "f.2277.0.0", 
+                   "f.1110.0.0","f.1031.0.0","f.1170.0.0","f.1220.0.0","f.1548.0.0","f.1180.0.0","f.1210.0.0",
+                   "branch_38", "branch_33", "branch_48", "branch_41", "branch_40",  
+                   "f.1747.0.0","f.699.0.0","f.1677.0.0","branch_44", 
+                   "f.1737.0.0", "f.1757.0.0", "f.1717.0.0", "f.1727.0.0", "branch_18",
+                   "f.1950.0.0","f.1980.0.0","f.2000.0.0","f.2040.0.0","f.1940.0.0",
+                   "branch_22", "f.2020.0.0","f.2030.0.0","branch_17","f.2080.0.0","branch_12","f.2110.0.0",
+                   "f.2178.0.0", 'f.2306.0.0', 'f.2316.0.0', 'f.2335.0.0','f.2345.0.0','f.2443.0.0',
+                   'f.2453.0.0', 'f.2463.0.0',"f.2492.0.0","f.6154.0.0","f.2247.0.0",
+                   "f.2188.0.0", "f.2473.0.0", "f.6146.0.0", "f.1767.0.0","f.2267.0.0")
+
+labels_IDK <- c("Ethnic background", "Gas or solid-fuel cooking/heating", "Physical Activities", "Time spent outdoors", "Time spent driving/using PC", 
+                "Drive faster than motorway speed limit", "Frequency of solarium/sunlamp use", "Length of mobile phone use", "Frequency of friend/family visits", "Getting up in morning",
+                "Daytime dozing / sleeping (narcolepsy)", "Variation in diet", "Morning/evening person (chronotype)", "Snoring", "Fruit/Vegetable intake",
+                "Fish and meat intake", "Milk and spread type", "Cereal/Bread and Coffee/Tea intake", "Time spent watching TV and sleep duration",
+                "Hair colour (natural, before greying)", "Length of time at current address", "Breastfed as a baby",
+                "Comparative body/height size at age 10", "Childhood sunburn occasions", "Facial ageing", "Skin colour",
+                "Ease of skin tanning", "Fed-up feelings and mood swings", "Sensitivity / hurt feelings", "Worrier / anxious feelings", 
+                "Worry too long after embarrassment", "Risk taking", "Irritability", "Nervous and tense feelings", "Loneliness, isolation",
+                "Guilty feelings", "Frequency of unenthusiasm/tenseness feelings", "Frequency of tiredness / lethargy in last 2 weeks", "Seen a doctor or psychiatrist fro nerves, anxiety or depression",
+                "Able to confide", "Overall health rating", "Weight change compared with 1 year ago", "Wheeze or whistling in the chest in last year", "Chest pain or discomfort",
+                "Ever had bowel cancer screening", "Diabetes diagnosed by doctor", "Cancer diagnosed by doctor", "Fractured/broken bones in last 5 years", "Taking other prescription medications",
+                "Medication for pain relief, constipation, heartburn", "Hearing difficulty/problems", "Long-standing illness, disability or infirmity", 
+                "Other serious medical condition/disability diagnosed by doctor", 
+                "Attendance/disability/mobility allowance", "Adopted as a child", "Use of sun/uv protection")
+
+a <- as.data.frame(alldata2)
+IDK_pruned_sum <- cbind(a$f.21000.0.0, a$f.6139.0.0, a$f.864.0.0+a$f.884.0.0+a$f.904.0.0, a$f.1050.0.0+a$f.1060.0.0, a$f.1080.0.0+a$f.1090.0.0,
+                        a$f.1100.0.0,  a$f.2277.0.0, a$f.1110.0.0, a$f.1031.0.0, a$f.1170.0.0, a$f.1220.0.0, a$f.1548.0.0, a$f.1180.0.0, a$f.1210.0.0,
+                        a$f.1289.0.0+a$f.1299.0.0+a$f.1309.0.0+a$f.1319.0.0,
+                        a$f.1329.0.0+a$f.1339.0.0+a$f.1349.0.0+a$f.1359.0.0+a$f.1369.0.0+a$f.1379.0.0+a$f.1389.0.0,
+                        a$f.1418.0.0+a$f.1428.0.0, a$f.1438.0.0+a$f.1458.0.0+a$f.1488.0.0+a$f.1498.0.0+a$f.1528.0.0,
+                        a$f.1070.0.0+a$f.1160.0.0, a$f.1747.0.0, a$f.699.0.0, a$f.1677.0.0, a$f.1687.0.0+a$f.1697.0.0,
+                        a$f.1737.0.0, a$f.1757.0.0, a$f.1717.0.0, a$f.1727.0.0, a$f.1920.0.0+a$f.1930.0.0+a$f.1960.0.0, a$f.1950.0.0,
+                        a$f.1980.0.0, a$f.2000.0.0, a$f.2040.0.0, a$f.1940.0.0, a$f.1970.0.0+a$f.1990.0.0+a$f.2010.0.0, a$f.2020.0.0,
+                        a$f.2030.0.0, a$f.2050.0.0+a$f.2060.0.0+a$f.2070.0.0, a$f.2080.0.0, a$f.2090.0.0+a$f.2100.0.0, a$f.2110.0.0,
+                        a$f.2178.0.0, a$f.2306.0.0, a$f.2316.0.0, a$f.2335.0.0, a$f.2345.0.0, a$f.2443.0.0, a$f.2453.0.0, a$f.2463.0.0, a$f.2492.0.0,
+                        a$f.6154.0.0, a$f.2247.0.0, a$f.2188.0.0, a$f.2473.0.0, a$f.6146.0.0, a$f.1767.0.0, a$f.2267.0.0)
+IDK_pruned_sum <- as.data.frame(IDK_pruned_sum)
+colnames(IDK_pruned_sum) <- col_names_IDK
+
+IDK_pruned_sum <- as.data.frame(apply(IDK_pruned_sum, 2, as.factor))
+
+colnames(IDK_pruned_sum_corr) <- rownames(IDK_pruned_sum_corr) <- labels_IDK
+
+# Heatmap plot
+plot_ly(x=colnames(IDK_pruned_sum_corr), y=colnames(IDK_pruned_sum_corr), z = IDK_pruned_sum_corr, type = "heatmap",colors=c("white","red")) %>%
+  layout(title = 'Heatmap mixedCor correlation', xaxis = list(autotick = F, tickmode = "array", tickvals = c(" ")),  
+         yaxis = list(autotick = F, tickmode = "array", tickvals = c(" ")))
+
+# Eigenvalue
+ev <- eigen(IDK_pruned_sum_corr)
+plot(ev$values[1:10], type = "l")
+abline(h=1, col = "red", lty = 2)
+sum((ev$value/sum(ev$value)*100)[1:5]) # % for which account
+
+# Plot correlation matrix
+rownames(IDK_pruned_sum_corr) <- colnames(IDK_pruned_sum_corr) <- labels_IDK
+interactive_matrix(IDK_pruned_sum_corr, main="MixedCor correlation matrix - after pruning (sum within branch)")
+
+# Splitting in training set and testing set (80:20) for EFA and CFA (before mod ind) respectively
+set.seed(42) # Meaning of life: 42
+
+colnames(IDK_pruned_sum) <- labels_IDK
+
+# numeric for efa, factor for cfa
+IDK_pruned_sum <- as.data.frame(apply(IDK_pruned_sum, 2, as.character))
+IDK_pruned_sum <- as.data.frame(apply(IDK_pruned_sum, 2, as.numeric))
+
+IDK_pruned_sum_ind <- sample(seq_len(nrow(IDK_pruned_sum)), size = floor(0.80 * nrow(IDK_pruned_sum)))
+IDK_pruned_sum_train <- IDK_pruned_sum[IDK_pruned_sum_ind, ] # EFA
+IDK_pruned_sum_test <- IDK_pruned_sum[-IDK_pruned_sum_ind, ] # CFA
+
+# Exploratory Factor Analysis
+IDK_pruned_sum_corr <- mixedCor(IDK_pruned_sum)$rho
+interactive_matrix(IDK_pruned_sum_corr)
+
+# Eigenvalue
+ev <- eigen(IDK_pruned_sum_corr)
+plot(ev$values[1:10], type = "l")
+abline(h=1, col = "red", lty = 2)
+sum((ev$value/sum(ev$value)*100)[1:5]) # % for which account
+
+IDK_pruned_sum_4efa <- fa(r= IDK_pruned_sum, nfactors=4, fm="ols", n.obs=nrow(IDK_pruned_sum),rotate="biquartimin", cor = "mixed") 
+rownames(IDK_pruned_sum_4efa$loadings) <- col_names_IDK
+print(IDK_pruned_sum_4efa$loadings, cutoff = 0.2)
+
+# Confirmatory Factor Analysis
+# As factor ordered for CFA
+colnames(IDK_pruned_sum_train) <- col_names_IDK
+IDK_pruned_sum  <- as.data.frame(apply(IDK_pruned_sum, 2, ordered))
+IDK_pruned_sum_train  <- as.data.frame(apply(IDK_pruned_sum_train, 2, ordered))
+IDK_pruned_sum_test  <- as.data.frame(apply(IDK_pruned_sum_test, 2, ordered))
+
+# model
+cfa_4fac_IDK <- '
+g	=~   f.21000.0.0 + f.6139.0.0 + branch_34 +  branch_37  + branch_39  + f.1100.0.0 + f.2277.0.0 +
+       f.1110.0.0 + f.1031.0.0 + f.1170.0.0 + f.1220.0.0 + f.1548.0.0 + f.1180.0.0 + f.1210.0.0 +
+       branch_38 + branch_33 + branch_48 + branch_41 + branch_40 + f.1747.0.0 + f.699.0.0  +
+       branch_44 + f.1737.0.0 + f.1757.0.0 + f.1717.0.0 + f.1727.0.0 + branch_18 +  
+       f.1950.0.0 + f.1980.0.0 + f.2000.0.0 + f.2040.0.0 + f.1940.0.0 + branch_22  + f.2020.0.0 +
+       f.2030.0.0 + branch_17 + f.2080.0.0 + branch_12 + f.2110.0.0 + f.2178.0.0 + f.2306.0.0 +
+       f.2316.0.0 + f.2335.0.0 + f.2345.0.0 + f.2443.0.0 + f.2453.0.0 + f.2463.0.0 + f.2492.0.0 +
+       f.6154.0.0 + f.2247.0.0 + f.2188.0.0 + f.2473.0.0 + f.6146.0.0 + f.1767.0.0 + f.2267.0.0 
+# Depression/Neuroticism (fed-up/ hurt/ anxious/ guilty/ tense feelings)
+f1=~   f.1950.0.0 + f.1980.0.0 + f.2000.0.0 + f.2040.0.0 + f.1940.0.0 + branch_22  + f.2020.0.0 +
+       f.2030.0.0 + branch_17 + f.2080.0.0 + branch_18
+       # mod ind       
+       # f.1180.0.0 + f.1757.0.0
+# Lifestyle (Physical Activities, Time spent, Frequency of visits, Food intake)
+f2=~   branch_34 +  branch_37  + branch_39 + f.1110.0.0 + f.1031.0.0 + f.1170.0.0 + 
+       branch_38 + branch_33 + branch_41 + branch_40 + f.1737.0.0  
+       # mod ind
+       # f.2345.0.0
+# Overall health (Chest pain, disability, medical condition, Hearing difficulties)
+f3=~  f.2316.0.0 + f.2335.0.0 + f.2247.0.0 + f.2188.0.0 + f.2473.0.0
+      # mod ind
+      # f.1210.0.0 + branch_12 + f.2463.0.0
+# General factor orthogonal to the group factors
+g  ~~  0*f1
+g  ~~  0*f2
+g  ~~  0*f3
+# modification index
+#branch_17 ~~  f.2080.0.0
+#branch_44 ~~  f.1737.0.0
+'
+
+fit_cfa_4fac_IDK <- cfa(cfa_4fac_IDK, 
+                        data = IDK_pruned_sum_train, sample.nobs = nrow(IDK_pruned_sum_train),
+                        estimator="WLSMV", std.lv = TRUE,
+                        ordered = colnames(IDK_pruned_sum_train))
+# safe
+#saveRDS(fit_cfa_4fac_IDK, file = 'fit_cfa_4fac_IDK.rds')
+fit_cfa_4fac_IDK <- readRDS('fit_cfa_4fac_IDK.rds', refhook = NULL) 
+
+fitMeasures(fit_cfa_4fac_IDK)
+# Modification indices: 
+mod_ind <- modificationindices(fit_cfa_4fac_IDK)
+head(mod_ind[order(mod_ind$mi, decreasing=TRUE), ], 10)
+
+# Factor score from "g" in 4 CFA all dataset 
+IDK_4fac_metric <- cbind(alldata$f.userId, IDK_4fac_factscores[,'g'])
+colnames(IDK_4fac_metric) <- c("s","phen")
+write.table(IDK_4fac_metric, file='IDK_4fac_metric.tsv', quote=FALSE, sep='\t', col.names = NA)
+IDK_4fac_metric <- read.table(file='IDK_4fac_metric.tsv')
+
+# Manhattan plot
+qqman::manhattan(h, chr="CHR", bp="BP", p="P", snp = "SNP", col = colors()[grep("blue",colors())],suggestiveline = F, annotatePval = 5e-8) 
+
+gwas1 <- read.table(file = 'gwas_IDK_4fac_metric.tsv.bgz', sep = '\t', header = TRUE)
+manhattan_plot('gwas_IDK_4fac_metric.tsv.bgz')
+#qq plot
+qq(gwas_exp_1$P)
+
+h <- gwas1 %>% filter(-log10(pval)>1)
+gwas2 <- read.table(file = 'gwas_highest_IDK.tsv.bgz', sep = '\t', header = TRUE)
+q <- gwas2 %>% filter(-log10(pval)>1)
