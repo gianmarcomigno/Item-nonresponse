@@ -297,3 +297,4 @@ colnames(metric_1plus_PNA) <- c('s','phen')
 metric_1plus_PNA <- metric_1plus_PNA[metric_1plus_PNA$phen>0,]
 write.table(metric_1plus_PNA, file='PNA_1plus.tsv', quote=FALSE, sep='\t', col.names = NA)
 PNA_1plus <- read.table(file='PNA_1plus.tsv', header = T)
+ 
