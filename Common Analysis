@@ -1,0 +1,82 @@
+# Import libriaries
+library(data.table)
+library(reshape2)
+library(ggplot2)
+library(plotly)
+library(spatstat)
+library(stringr)
+library(plyr)
+library(dplyr)
+library(psych)
+library(GPArotation)
+library(lavaan)
+library(car)
+library(tidyverse)
+library(tidylog)
+library(RColorBrewer)
+library(dichromat)
+
+# Reading Phenotype file
+d <- fread("neale_lab_parsed.tsv", header=T)
+colnames(d) <- paste0("f.",gsub("x","",gsub("_",".",colnames(d))))
+
+# Read in the sample and subsetting, excluding those who gave no permission
+sample <- read.table("ukb31063.gwas_samples.both_sexes.txt", header = TRUE)
+s1 <- read.csv('w31063_20181016.csv')
+s2 <- setdiff(sample$s,s1$X1142430)
+
+# Subsetting Variables - only those asked to every participant. NB only f.X.0.0 are included.
+keep <- c("f.userId","f.54.0.0","f.20116.0.0","f.21000.0.0","f.670.0.0","f.6139.0.0","f.699.0.0","f.6142.0.0","f.6138.0.0","f.864.0.0",
+          "f.884.0.0","f.904.0.0","f.1031.0.0","f.6160.0.0","f.1050.0.0","f.1060.0.0","f.1070.0.0","f.1080.0.0","f.1090.0.0",
+          "f.1100.0.0","f.1110.0.0","f.1160.0.0","f.1170.0.0","f.1180.0.0","f.1190.0.0","f.1200.0.0","f.1210.0.0","f.1220.0.0",
+          "f.1239.0.0","f.1289.0.0","f.1299.0.0","f.1309.0.0","f.1319.0.0","f.1329.0.0","f.1339.0.0","f.1349.0.0","f.1359.0.0",
+          "f.1369.0.0","f.1379.0.0","f.1389.0.0","f.6144.0.0","f.1418.0.0","f.1428.0.0","f.1438.0.0","f.1458.0.0","f.1478.0.0",
+          "f.1488.0.0","f.1498.0.0","f.1518.0.0","f.1528.0.0","f.1538.0.0","f.1548.0.0","f.1558.0.0","f.1647.0.0","f.1677.0.0",
+          "f.1687.0.0","f.1697.0.0","f.1707.0.0","f.1717.0.0","f.1727.0.0","f.1737.0.0","f.1747.0.0","f.1757.0.0","f.1767.0.0",
+          "f.1920.0.0","f.1930.0.0","f.1940.0.0","f.1950.0.0","f.1960.0.0","f.1970.0.0","f.1980.0.0","f.1990.0.0","f.2000.0.0",
+          "f.2010.0.0","f.2020.0.0","f.2030.0.0","f.2040.0.0","f.2050.0.0","f.2060.0.0","f.2070.0.0","f.2080.0.0","f.2090.0.0",
+          "f.2100.0.0","f.2110.0.0","f.6149.0.0","f.2129.0.0","f.2178.0.0","f.2188.0.0","f.6146.0.0","f.2207.0.0","f.2227.0.0",
+          "f.2267.0.0","f.2277.0.0","f.2296.0.0","f.2306.0.0","f.2316.0.0","f.6145.0.0","f.6159.0.0","f.2335.0.0","f.2345.0.0",
+          "f.6150.0.0","f.6152.0.0","f.2443.0.0","f.2453.0.0","f.2463.0.0","f.2473.0.0","f.2492.0.0","f.6154.0.0","f.6155.0.0",
+          "f.2247.0.0","f.6179.0.0","f.2237.0.0", "f.53.0.0")
+
+# Subsetting partecipants, excluding pilot-study predecessors
+d1 <- d[d$f.userId %in% s2, keep, with=FALSE]
+d1 <- d1[d1$f.53.0.0 > "2007-01-01",]
+d1 <- d1[,!"f.53.0.0"]
+
+# Remove partecipants with too many NAs
+var_miss <- data.frame(xvar = names(colSums(is.na(d1))),
+                       yvar = colSums(is.na(d1)))
+var_miss_num <- var_miss[var_miss$yvar==max(colSums(is.na(d1))),]$xvar
+
+completeFun <- function(data, desiredCols) {
+  completeVec <- complete.cases(data[, desiredCols, with = F])
+  return(data[completeVec, ])}
+
+alldata<- completeFun(d1, var_miss_num)
+
+########################################################
+#                    CHECKPOINT 1                      #
+########################################################
+saveRDS(alldata, file = 'alldata.rds')
+#write.csv(alldata, file = "alldata.csv")
+alldata <- readRDS('alldata.rds', refhook = NULL) 
+alldata <- alldata[,-1]
+
+# Adding labels to variables, to include the UserID = "f.1.0.0"
+names(alldata)[1] <- "f.1.0.0"
+infos <- rbind(infos, data.frame("FieldID" = 1, "Field" = "UserID",stringsAsFactors = TRUE))
+
+# Read in Uk Biobank info and adding labels
+info <- read.csv('Data_Dictionary_Showcase.csv')
+infos <- info[c(grep("UK Biobank assessment centre",info$Field), grep("Touchscreen", info$Path)),c("FieldID","Field")]
+
+lab_vec <- infos[paste0("f.",infos$FieldID,".0.0") %in% colnames(alldata),c("Field","FieldID")]
+labvec <- lab_vec[match(names(alldata), paste0("f.",lab_vec$FieldID,".0.0")),]
+
+colnames(alldata) <- lab_vec[match(colnames(alldata), paste0("f.",lab_vec$FieldID,".0.0")),]$Field
+
+# Variables' information
+# Type: C = Categorical, O = Ordinal, N = Numeric Integer. Multiple Instances: 1 = yes, 0 = no. Progressive.code: code in the survey
+vars_info <- read.table(file = 'vars_info.tsv', sep = '\t', header = TRUE)
