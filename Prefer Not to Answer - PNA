@@ -3,6 +3,7 @@
 #             -3: "Prefer not to answer"               #
 #                                                      #
 ########################################################
+# Analysis on the items with the "Prefer not to answer" option
 
 # Subsetting and recoding as dummy variable: 1 PNA, 0 otherwise
 not <- c(names(which(colSums(alldata==-3)==0)))
