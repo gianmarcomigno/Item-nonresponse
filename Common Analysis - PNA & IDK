@@ -159,3 +159,60 @@ manhattan_plot <- function(name_file, col = c("gray10", "gray60"), title='title'
   qqman::manhattan(h, chr="CHR", bp="BP", p="P", snp = "SNP",suggestiveline = F, 
                    annotatePval = 5e-8, col = col, title=title)
 } 
+
+########################################################
+#         COMPARE UNADJUSTED AND ADJUSTED rg           #
+########################################################
+# read in file to make volcano plot with unadjusted rg
+install.packages("ggrepel")
+install.packages("gridExtra")
+install.packages("grid")
+install.packages("ggplot2")
+
+library(grid)
+library(ggrepel)
+library("gridExtra")
+library(ggplot2)
+
+pna_idk <- read.csv("pna_idk_comparison.csv")
+names(pna_idk$Traits[c(6,31, 17, 13)]) <- c("Educational Attainment", "Loneliness", "Low self rated health", " Schizophrenia")
+levels(pna_idk$Traits)[c(16,22,36,30)] <- c("Educational Attainment", "Loneliness", "Low self rated health", " Schizophrenia")
+
+
+# WARNING (no correct colnames): pna adj it's in fact unadj, for idk it's correct
+ggplot(pna_idk, aes(x=rg_pna_unadj, y=-log10(pvalue_rg_pna_unadj))) +
+  geom_point(aes(x=rg_pna_unadj, y=-log10(pvalue_rg_pna_unadj)))
+
+limits <- c(-100,85)
+breaks <- seq(limits[1], limits[2], by=20)
+
+p1 <- ggplot(pna_idk, aes(x=rg_pna_adj, y=-log10(pvalue_rg_pna_adj), size=1.8)) +
+  geom_point() +
+  xlim(limits=c(-.55,.55)) +
+  ylim(limits=c(0,90)) +
+  theme_bw() +
+  xlab("Genetic correlation PNA") + ylab("-Log10(p-value)") +
+  theme (legend.position = "none",
+         axis.text=element_text(size=11), 
+         axis.title=element_text(size=14,face="bold")) +
+  geom_text_repel(data = subset(pna_idk, -log10(pvalue_rg_pna_adj)>20 | -log10(pvalue_rg_pna_adj) > 9.459 & -log10(pvalue_rg_pna_adj) < 9.46),
+                    aes(rg_pna_adj,-log10(pvalue_rg_pna_adj),label=Traits),
+                    nudge_y = 10,
+                    direction = "x")
+    
+p2 <- ggplot(pna_idk, aes(x=rg_idk_unadj, y=-log10(pvalue_rg_idk_unadj),  size=1.8)) +
+  geom_point() +
+  theme_bw() +
+  xlim(limits=c(-.55,.55)) +
+  ylim(limits=c(0,90)) +
+  xlab("Genetic correlation IDK") + ylab("-Log10(p-value)") +
+  theme (legend.position = "none",
+         axis.text=element_text(size=11), 
+         axis.title=element_text(size=14,face="bold")) +
+      geom_text_repel(data = subset(pna_idk, -log10(pvalue_rg_idk_unadj)>22 | -log10(pvalue_rg_idk_unadj) > 0.24 & -log10(pvalue_rg_idk_unadj) < 0.25),
+                  aes(rg_pna_adj,-log10(pvalue_rg_idk_unadj),label=Traits),
+                  nudge_y =-1,
+                  direction = "x")
+
+grid.arrange(p1, p2, ncol=2, top = textGrob("Genetic correlation IDK/PNA with other traits",
+                                           gp=gpar(fontsize=20,font=2)))
