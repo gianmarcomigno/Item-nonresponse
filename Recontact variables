@@ -1,0 +1,61 @@
+# Import libriaries
+install.packages("aod")
+install.packages("broom")
+
+
+libraries <- c("data.table", "reshape2", "ggplot2", "plotly", "spatstat", 
+               "stringr", "plyr", "dplyr", "psych", "GPArotation", "lavaan", 
+               "car", "tidyverse", "tidylog", "RColorBrewer", "dichromat", "aod",
+               "broom")
+lapply(libraries, require, character.only = TRUE)
+
+# import recontact variable
+#Invitation to complete online 24-hour recall dietary questionnaire 110001-1.0 (acceptance, 0 non reponse, 2 completed)
+
+accept_complete_questionn 
+
+d <- fread()
+d <- select %>% starts_with("110001-1.0", "20400-1.0" "eid", "54-0.0") #double check
+
+# scale idk, pna
+phen_pna_std <- scale()
+phen_idk_std <- scale()
+
+# model with both pna and idk
+logit_pna_idk <- glm(accept_complete_questionn ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
+               PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20 +
+               phen_pna, 
+               data = mydata, family = "binomial")
+
+# model without both pna and idk
+logit_NO_pna_idk <- glm(accept_complete_questionn ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
+                PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20, 
+                data = mydata, family = "binomial")
+
+# estimate pseudo r squared for pna and idk predictors
+R2logit<- function(model){
+  R2<- 1-(model$deviance/model$null.deviance)
+  return(R2)}
+
+R2logit(logit_pna_idk)-R2logit(logit_NO_pna_idk)
+
+# table with results
+table_or <- function(model){
+  
+  # get standard error odd ratio
+  get.or.se <- function(model) {
+    broom::tidy(model) %>% 
+      mutate(or = exp(estimate),
+             var.diag = diag(vcov(model)),
+             or.se = sqrt(or^2 * var.diag)) %>%
+      select(or.se) %>% unlist %>% unname}
+  # combine results in a unique table
+  table <- cbind(exp(coef(model)),
+                 get.or.se(model),
+                 coef(summary(model))[,4])
+  colnames(table) <- c("OR", "se", "P-value")
+  return(table)
+  
+}
+
+table_or(model)
