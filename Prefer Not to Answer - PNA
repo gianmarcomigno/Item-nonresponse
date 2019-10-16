@@ -466,3 +466,29 @@ factscores_PNA[which(!complete.cases(factscores_PNA_ml)), ] # in eba
 apply(factscores_PNA[complete.cases(factscores_PNA),1:5], 2, summary)
 
 rowSums(alldata1[which(!complete.cases(factscores_PNA_ml)),])) # in alldata 
+
+#### Plot % of participants who preferred not to answer about snoring
+alldata <- readRDS('alldata.rds', refhook = NULL)
+not <- c(names(which(colSums(alldata==-3)==0)))
+alldata1<-alldata[,!colnames(alldata) %in% not, with =F]
+alldata1 <- as.data.frame(ifelse(alldata1==-3,1,0))
+snoring <- as.data.frame(cbind(alldata$f.userId ,alldata1$f.1210.0.0)) #1210 snore, 1100 drive
+colnames(snoring) <- c("s", "snores")
+
+covariates <- read.csv("ukb31063.neale_gwas_covariates.both_sexes.tsv.bgz", sep="\t")
+
+out <- merge(x = snoring, y = covariates, by="s")[,2:3]
+out$isFemale <- ifelse(out$isFemale=="true",1,0)
+
+library(ggplot2)
+
+out_red <- out[out$snores==1,]
+
+ggplot(out_red, mapping = aes(x=isFemale)) +
+  geom_bar(aes(y = ..prop.., group = 1), fill = c('lightblue', 'pink')) +
+  geom_text(aes( y = ..prop.., label = scales::percent(..prop..)), stat = "count", vjust = -1) +
+  xlab("Gender") +
+  ylab("Proportion") +
+  ggtitle("% of participants who preferred not to answer about snoring") +
+  theme_bw() +
+  theme(plot.title = element_text(size=14, face="bold", hjust = 0.5))
