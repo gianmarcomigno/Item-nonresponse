@@ -301,3 +301,17 @@ qq(gwas_exp_1$P)
 h <- gwas1 %>% filter(-log10(pval)>1)
 gwas2 <- read.table(file = 'gwas_highest_IDK.tsv.bgz', sep = '\t', header = TRUE)
 q <- gwas2 %>% filter(-log10(pval)>1)
+
+### Comparing extraction methods for factor scores: ML vs EBA
+fit_cfa_IDK <- fit_cfa_4fac_IDK
+
+# ml method
+factscores_IDK_ml <- lavPredict(fit_cfa_IDK, method = "ML")
+saveRDS(factscores_IDK_ml, file = "factscores_IDK_ml.rds")
+factscores_IDK_ml <- as.data.frame(readRDS(file = "factscores_IDK_ml.rds"))
+
+
+# eba method
+factscores_IDK <- lavPredict(fit_cfa_IDK)
+saveRDS(factscores_IDK, file = "factscores_IDK.rds")
+factscores_IDK <- as.data.frame(readRDS(file = "factscores_IDK.rds"))
