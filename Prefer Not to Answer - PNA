@@ -298,3 +298,171 @@ metric_1plus_PNA <- metric_1plus_PNA[metric_1plus_PNA$phen>0,]
 write.table(metric_1plus_PNA, file='PNA_1plus.tsv', quote=FALSE, sep='\t', col.names = NA)
 PNA_1plus <- read.table(file='PNA_1plus.tsv', header = T)
  
+########################################################
+#        PRUNING 2 and FACTOR SCORES ML vs EBA         #
+########################################################
+install.packages("car")
+install.packages("plyr")
+install.packages("lavaan")
+
+library(plyr)
+library(car)
+library(lavaan)
+
+# import all data
+alldata <- readRDS('alldata.rds', refhook = NULL)
+
+# select only those with the pna option
+not <- c(names(which(colSums(alldata==-3)==0)))
+alldata1<-alldata[,!colnames(alldata) %in% not, with =F]
+alldata1 <- as.data.frame(ifelse(alldata1==-3,1,0))
+
+# Colnames and labels
+column_names <- c("branch_31","f.21000.0.0","branch_3","f.6142.0.0","f.6138.0.0",
+                  "branch_4", "f.1031.0.0", "f.6160.0.0", "branch_9", "branch_6",
+                  "f.1100.0.0", "f.1110.0.0", "branch_33", "f.1180.0.0", "f.1210.0.0",
+                  "branch_34", "branch_35", "f.6144.0.0", "f.1538.0.0", "branch_30",
+                  "branch_32", "branch_29", "branch_14", "branch_13", "branch_16",
+                  "f.2110.0.0", "f.6149.0.0", "branch_27", "f.2188.0.0", "f.6146.0.0",
+                  "branch_22", "f.2277.0.0", "f.2296.0.0", "f.6145.0.0", "f.6159.0.0",
+                  "branch_23", "branch_21")
+
+labels <- c("Smoking status","Ethnic background","Type of accommodation and lenght at current address","Current employment status","Qualifications",
+            "Physical activity", "Frequency of friend/family visits", "Leisure/social activities", "Time spent outdoors or watching TV", "Time spent using PC or driving",
+            "Drive faster than motorway speed limit", "Length of mobile phone use", "Sleep quality and duration", "Morning/evening person", "Snoring",
+            "Fruit and vegetable intake", "Diet, food and alcohol intake", "Never eat eggs, dairy, wheat, sugar", "Major dietary changes in the last 5 years", "Person-specific information: adopted, handedness, hair color",
+            "Childhood sunburn occasions and facial ageing", "Skin color and ease of skin tanning", "Depression/neuroticism feelings", "Frequency od depressed mood/unenthusiasm/tenseness", "Seen a psychiatrist or GP for nerves, anxiety, tension or depression",
+            "Able to confide", "Mouth/teeth dental problems", "Overall health status", "Long-standing illness, disability or infirmity", "Attendance/disability/mobility allowance",
+            "Wears glasses and eye problems", "Frequency of solarium/sunlamp use", "Falls in the last year", "Illness, injury, bereavement, stress in last 2 years", "Pain type(s) experienced in last month",
+            "Hearth and lungs problems", "Vitamin and dietary supplements")
+
+# pruning 1: sum #of pnA sum within each branch
+a <- alldata1
+
+PNA_pruned1 <- as.data.frame(
+  cbind(a$f.20116.0.0 + a$f.1239.0.0,
+        a$f.21000.0.0,
+        a$f.670.0.0 + a$f.6139.0.0 + a$f.699.0.0,
+        a$f.6142.0.0,
+        a$f.6138.0.0,
+        a$f.864.0.0 + a$f.884.0.0 + a$f.904.0.0,
+        a$f.1031.0.0,
+        a$f.6160.0.0,
+        a$f.1050.0.0 + a$f.1060.0.0 + a$f.1070.0.0, 
+        a$f.1080.0.0 + a$f.1090.0.0,
+        a$f.1100.0.0,
+        a$f.1110.0.0,
+        a$f.1160.0.0 + a$f.1170.0.0 + a$f.1190.0.0 + a$f.1200.0.0 + a$f.1220.0.0,
+        a$f.1180.0.0,
+        a$f.1210.0.0,
+        a$f.1289.0.0 + a$f.1299.0.0 + a$f.1309.0.0 + a$f.1319.0.0,
+        a$f.1329.0.0 + a$f.1339.0.0 + a$f.1349.0.0 + a$f.1359.0.0 + a$f.1369.0.0 + a$f.1379.0.0 + a$f.1389.0.0 + a$f.1418.0.0 + 
+                       a$f.1428.0.0 + a$f.1438.0.0 + a$f.1458.0.0 + a$f.1478.0.0 + a$f.1488.0.0 + a$f.1498.0.0 + a$f.1518.0.0 + 
+                       a$f.1528.0.0 + a$f.1558.0.0 + a$f.1548.0.0,
+        a$f.6144.0.0,
+        a$f.1538.0.0,
+        a$f.1647.0.0 + a$f.1707.0.0 + a$f.1747.0.0 + a$f.1767.0.0 + a$f.1677.0.0 + a$f.1687.0.0 + a$f.1697.0.0,
+        a$f.1737.0.0 + a$f.1757.0.0,
+        a$f.1717.0.0 + a$f.1727.0.0,
+        a$f.1920.0.0 + a$f.1930.0.0 + a$f.1940.0.0 + a$f.1950.0.0 + a$f.1960.0.0 + a$f.1970.0.0 + a$f.1980.0.0 + a$f.1990.0.0 +
+                       a$f.2000.0.0 + a$f.2010.0.0 + a$f.2020.0.0 + a$f.2030.0.0 + a$f.2040.0.0,
+        a$f.2050.0.0 + a$f.2060.0.0 + a$f.2070.0.0 + a$f.2080.0.0,
+        a$f.2090.0.0 + a$f.2100.0.0,
+        a$f.2110.0.0,
+        a$f.6149.0.0,
+        a$f.2178.0.0 + a$f.2267.0.0 + a$f.2306.0.0 + a$f.2316.0.0 + a$f.2335.0.0 + a$f.2345.0.0 + a$f.2443.0.0 + a$f.2453.0.0 +
+                       a$f.2463.0.0 + a$f.2473.0.0 + a$f.2492.0.0 + a$f.6154.0.0 + a$f.2247.0.0 + a$f.2237.0.0,
+        a$f.2188.0.0,
+        a$f.6146.0.0,
+        a$f.2207.0.0 + a$f.2227.0.0,
+        a$f.2277.0.0,
+        a$f.2296.0.0,
+        a$f.6145.0.0,
+        a$f.6159.0.0,
+        a$f.6150.0.0 + a$f.6152.0.0,
+        a$f.6155.0.0 + a$f.6179.0.0))
+
+colnames(PNA_pruned1) <- column_names
+
+# Split in 4 bins: 0, 1, 2: [2,n-1], 3: n PNAs for 4+ items
+for(i in c("branch_33", "branch_34", "branch_35", "branch_30", "branch_14", "branch_13", "branch_27")){
+  PNA_pruned1[,i] <- ifelse(PNA_pruned1[,i] == max(as.numeric(names(table(PNA_pruned1[,i])))), 'n', PNA_pruned1[,i])}
+
+PNA_pruned2 <- as.data.frame(apply(PNA_pruned1, 2, function(x) {car::recode(x, "'0'= 0; '1'= 1; 'n'= 3; else= 2")}))
+
+apply(PNA_pruned2,2,summary)
+
+# Order the factors for CFA
+PNA_pruned2  <- as.data.frame(apply(PNA_pruned2, 2, as.factor))
+PNA_pruned2 <- plyr::catcolwise( function(v) ordered(v, levels = c(0, 1, 2, 3)))(PNA_pruned2)
+
+# CFA after modification index on all dataset (100%) FINAL
+
+cfa_PNA <- '
+              g	=~  branch_31 + f.21000.0.0 + branch_3 + f.6142.0.0 + f.6138.0.0 + 
+              branch_4 +  f.1031.0.0 +  f.6160.0.0 +  branch_9 +  branch_6 + 
+              f.1100.0.0 +  f.1110.0.0 +  branch_33 +  f.1180.0.0 +  f.1210.0.0 + 
+              branch_34 +  branch_35 +  f.6144.0.0 +  f.1538.0.0 +  branch_30 + 
+              branch_32 +  branch_29 +  branch_14 +  branch_13 +  branch_16 + 
+              f.2110.0.0 +  f.6149.0.0 +  branch_27 +  f.2188.0.0 +  f.6146.0.0 + 
+              branch_22 +  f.2277.0.0 +  f.2296.0.0 +  f.6145.0.0 +  f.6159.0.0 + 
+              branch_23 +  branch_21
+              
+              # Social status: Type of accommodation and lenght at current address, Current employment status, Qualifications, Frequency of friend/family visits 
+              f1	=~  branch_3 + f.6142.0.0 + f.6138.0.0 + f.1031.0.0
+              
+              # Overall health
+              f2	=~  f.6149.0.0 +  branch_27 +  f.2188.0.0 +  f.6146.0.0 + branch_22 + 
+              f.2296.0.0 + f.6159.0.0 + branch_23 +  branch_21
+              
+              # Ethnicity
+              f3	=~  f.21000.0.0 + branch_30 + branch_29 
+              
+              # Depression/Neuroticism
+              f4	=~  branch_14 +  branch_13 +  branch_16 + f.2110.0.0 
+              
+              # General factor orthogonal to the group factors
+              g  ~~  0*f1
+              g  ~~  0*f2
+              g  ~~  0*f3
+              g  ~~  0*f4
+              
+              # Modification indeces
+              branch_6 ~~  f.1100.0.0
+              f.1100.0.0 ~~  f.1110.0.0
+'
+fit_cfa_PNA <- cfa(cfa_PNA, 
+                   data = PNA_pruned2, sample.nobs = nrow(PNA_pruned2),
+                   estimator="WLSMV", std.lv = TRUE,
+                   ordered = colnames(PNA_pruned2))
+
+# ml method
+factscores_PNA_ml <- lavPredict(fit_cfa_PNA, method = "ML")
+# Save an object to a file and restore
+saveRDS(factscores_PNA_ml, file = "factscores_PNA_ml.rds")
+factscores_PNA_ml <- as.data.frame(readRDS(file = "factscores_PNA_ml.rds"))
+factors_name_ml <- c("general_ml", "Social status_ml", "Overall health_ml", "Ethnicity_ml", "Depression_ml")
+colnames(factscores_PNA_ml) <- factors_name_ml
+
+print(paste0("factor scores using ML method with ", nrow(factscores_PNA_ml[complete.cases(factscores_PNA_ml),1:5]), " (out of 360628) complete cases"))
+cor(factscores_PNA_ml[complete.cases(factscores_PNA_ml),1:5])
+
+# eba method
+factscores_PNA <- lavPredict(fit_cfa_PNA)
+# Save an object to a file and restore
+saveRDS(factscores_PNA, file = "factscores_PNA.rds")
+factscores_PNA <- as.data.frame(readRDS(file = "factscores_PNA.rds"))
+factors_name <- c("general", "Social status", "Overall health", "Ethnicity", "Depression")
+colnames(factscores_PNA) <- factors_name
+
+print(paste0("factor scores using EBA method with ", nrow(factscores_PNA[complete.cases(factscores_PNA),1:5]), "(out of 360628) complete cases"))
+factscores_PNA[complete.cases(factscores_PNA),1:5])
+
+both <- cbind(factscores_PNA_ml,factscores_PNA)
+cor(both[complete.cases(both),])
+
+# participants with na factor scores ML in EBA method 
+factscores_PNA[which(!complete.cases(factscores_PNA_ml)), ] # in eba 
+apply(factscores_PNA[complete.cases(factscores_PNA),1:5], 2, summary)
+
+rowSums(alldata1[which(!complete.cases(factscores_PNA_ml)),])) # in alldata 
