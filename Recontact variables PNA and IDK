@@ -1,43 +1,61 @@
-# Import libriaries
+install.packages("magrittr")
+install.packages("dplyr")
 install.packages("aod")
 install.packages("broom")
 
+library(magrittr)
+library(dplyr)
+library(aod)
+library(broom)
 
-libraries <- c("data.table", "reshape2", "ggplot2", "plotly", "spatstat", 
-               "stringr", "plyr", "dplyr", "psych", "GPArotation", "lavaan", 
-               "car", "tidyverse", "tidylog", "RColorBrewer", "dichromat", "aod",
-               "broom")
-lapply(libraries, require, character.only = TRUE)
+# read in all files
+recontact_variables <- readRDS("recontact_variables.rds")
+covariates <- fread("ukb31063.neale_gwas_covariates.both_sexes.csv")
+factscores_pna <- readRDS(file = "factscores_PNA.rds")
 
-# import recontact variable
-#Invitation to complete online 24-hour recall dietary questionnaire 110001-1.0 (acceptance, 0 non reponse, 2 completed)
+# Field 110001-1.0: Invitation to complete online 24-hour recall dietary questionnaire - acceptance
+# combine covariates, pna/idk phenotypes and recontact variables all in one dataframe
+acceptance <- recontact_variables[, c("f.userId", "f.110001.1.0")]
 
-accept_complete_questionn 
+# recode (0 non reponse, 2 completed)
+acceptance$f.110001.1.0 <- ifelse(acceptance$f.110001.1.0 == 0, 1, 0)
 
-d <- fread()
-d <- select %>% starts_with("110001-1.0", "20400-1.0" "eid", "54-0.0") #double check
+# subset to participants in the pna/idk analysis AND with pna_ml factor scores not NA
+alldata <- readRDS("alldata.rds")
 
-# scale idk, pna
-phen_pna_std <- scale()
-phen_idk_std <- scale()
+acceptance <- acceptance[acceptance$f.userId %in% alldata$f.userId,]
 
-# model with both pna and idk
-logit_pna_idk <- glm(accept_complete_questionn ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
-               PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20 +
-               phen_pna, 
-               data = mydata, family = "binomial")
+# read in phenotypes pna-eba & pna_ml (standardized) and covariates
+pna_eba <- data.frame(factscores_PNA)
+pna_ml <- data.frame(factscores_PNA_ml)
 
-# model without both pna and idk
-logit_NO_pna_idk <- glm(accept_complete_questionn ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
-                PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20, 
-                data = mydata, family = "binomial")
+covariates <- ukb31063_neale_gwas_covariates_both_sexes[ukb31063_neale_gwas_covariates_both_sexes$s %in% alldata$f.userId,]
 
-# estimate pseudo r squared for pna and idk predictors
-R2logit<- function(model){
-  R2<- 1-(model$deviance/model$null.deviance)
-  return(R2)}
+# merge covariates and acceptance and add to phenotypes pna
+out <- merge(x = covariates, y = acceptance, by.x = "s", by.y = "f.userId")
 
-R2logit(logit_pna_idk)-R2logit(logit_NO_pna_idk)
+accept <- cbind(out,
+                scale(pna_eba$g)) #scaled phenotype
+
+accept <- accept[complete.cases(accept),]
+
+# recode and rename for logit
+accept$isFemale <- ifelse(accept$isFemale == T, 1,0)
+colnames(accept)[27:28] <- c("responded_questionn", "pna_eba_scaled")
+
+#------------- logistic model
+########## eba method
+
+# model WITH pna_eba in the model 
+logit_pna_eba <- glm(responded_questionn ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
+                       PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20 +
+                       pna_eba_scaled, 
+                      data = accept, family = "binomial")
+
+# model WITHOUT pna_eba in the model 
+logit_NO_pna_eba <- glm(responded_questionn ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
+                       PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20, 
+                     data = accept, family = "binomial")
 
 # table with results
 table_or <- function(model){
@@ -55,7 +73,53 @@ table_or <- function(model){
                  coef(summary(model))[,4])
   colnames(table) <- c("OR", "se", "P-value")
   return(table)
-  
 }
 
-table_or(model)
+table_or(logit_pna_eba)
+
+# compare pseudo rsquared
+# estimate pseudo r squared for pna and idk predictors
+R2logit<- function(model){
+  R2<- 1-(model$deviance/model$null.deviance)
+  return(R2)
+  }
+
+R2logit(logit_pna_eba)-R2logit(logit_NO_pna_eba)
+
+######### ml method
+accept_ml <- cbind(out,
+                scale(pna_ml$g)) #scaled phenotype
+
+accept_ml <- accept_ml[complete.cases(accept_ml),]
+
+# recode and rename for logit
+accept_ml$isFemale <- ifelse(accept_ml$isFemale == T, 1,0)
+colnames(accept_ml)[27:28] <- c("responded_questionn", "pna_ml_scaled")
+
+# model WITH pna_ml in the model 
+logit_pna_ml <- glm(responded_questionn ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
+                       PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20 +
+                       pna_ml_scaled, 
+                     data = accept_ml, family = "binomial")
+
+
+R2logit(logit_pna_ml)-R2logit(logit_NO_pna_eba)
+
+# side to side:
+table_pna_eba <- table_or(logit_pna_eba)
+table_pna_ml <- table_or(logit_pna_ml)
+table_eba_ml <- cbind(table_pna_ml,table_pna_eba)
+colnames(table_eba_ml) <- c("OR_ml","se_ml","P-value_ml","OR_eba","se_eba","P-value_eba")
+rownames(table_eba_ml)[27] <- "pna_factorscore"
+
+# factor score phenotypic correlation 
+pna_eba_ml <- cbind(pna_eba,pna_ml)
+pna_eba_ml <- pna_eba_ml[complete.cases(pna_eba_ml),]
+colnames(pna_eba_ml) <- c(paste0(colnames(pna_eba_ml)[1:5],"_eba"), paste0(colnames(pna_eba_ml)[6:10],"_ml"))
+
+cor(pna_eba_ml)
+
+#-------------------- IDK analysis
+
+
+
