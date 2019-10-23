@@ -46,31 +46,44 @@ covariate_fin <- readRDS("covariate_fin.rds")
 
 
 ###--------------BEST PREDICTOR
-# Field 110001-1.0: Invitation to complete online 24-hour recall dietary questionnaire - acceptance
-# combine covariates, pna/idk phenotypes and recontact variables all in one dataframe
+recontact_variables <- readRDS("recontact_variables.rds")
+
+# Field 110001-1.0: Invitation to complete online 24-hour recall dietary questionnaire - acceptance (1st istance)
 acceptance <- recontact_variables %>% select("f.userId", "f.110001.1.0")
 acceptance$f.110001.1.0 <- ifelse(acceptance$f.110001.1.0 == 0, 1, 0) #recode (0 non reponse, 2 completed)
-acceptance <- acceptance[acceptance$f.userId %in% alldata$f.userId,] #subset
+acceptance <- acceptance[acceptance$f.userId %in% covariate_fin$userID,] #subset
 
-# merge covariates and acceptance and add to phenotypes pna
-out <- merge(x = covariates, y = acceptance, by.x = "s", by.y = "f.userId")
+covariates_and_outcome <- merge(x = covariate_fin, y = acceptance, by.x = "userID", by.y = "f.userId")
+colnames(covariates_and_outcome)[32] <- "nonresponded_diet_questionn_1visit"
+covariates_and_outcome <- covariates_and_outcome[complete.cases(covariates_and_outcome),] # 356246 --> 216453
 
-accept <- cbind(out,
-                scale(pna_eba$g)) #scaled phenotype
+# Field 20400: Date of completing mental health questionnaire
+completed_mentalhealth <- recontact_variables %>% select("f.userId", "f.20400.0.0")
+completed_mentalhealth <- completed_mentalhealth[completed_mentalhealth$f.userId %in% covariate_fin$userID, ]
+completed_mentalhealth$f.20400.0.0 <- ifelse(completed_mentalhealth$f.20400.0.0 == '', 1, 0) # recode: date if completed (as 0), NA if not responded (as 1)
 
-accept <- accept[complete.cases(accept),]
+covariates_and_outcome <- as.data.frame((cbind(covariate_fin, completed_mentalhealth$f.20400.0.0)))  # 356246 (all)
+colnames(covariates_and_outcome)[32] <- "completed_mentalhealth_questionn"
 
 #------------- logistic model
-# model WITH pna_eba in the model 
-logit_pna_eba <- glm(responded_questionn ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
-                       PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20 +
-                       pna_eba_scaled, 
-                     data = accept, family = "binomial")
+model1 <- glm(nonresponded_diet_questionn_1visit ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
+                PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20 + 
+                scaled_idk, 
+              data = covariates_and_outcome, family = "binomial")
 
-# model WITHOUT pna_eba in the model 
-logit_NO_pna_eba <- glm(responded_questionn ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
-                          PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20, 
-                        data = accept, family = "binomial")
+model0 <- glm(nonresponded_diet_questionn_1visit ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
+                        PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20, 
+                        data = covariates_and_outcome, family = "binomial")
+
+R2logit(model1)-R2logit(model0)
+
+# estimate pseudo r squared for predictor
+R2logit<- function(model){
+  R2<- 1-(model$deviance/model$null.deviance)
+  return(R2)
+}
+
+R2logit(model1)-R2logit(model2)
 
 # table with results
 table_or <- function(model){
@@ -90,13 +103,4 @@ table_or <- function(model){
   return(table)
 }
 
-table_or(logit_pna_eba)
-
-# compare pseudo rsquared
-# estimate pseudo r squared for pna and idk predictors
-R2logit<- function(model){
-  R2<- 1-(model$deviance/model$null.deviance)
-  return(R2)
-}
-
-R2logit(logit_pna_eba)-R2logit(logit_NO_pna_eba)
+table_or(model1)
