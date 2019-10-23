@@ -100,17 +100,3 @@ R2logit<- function(model){
 }
 
 R2logit(logit_pna_eba)-R2logit(logit_NO_pna_eba)
-
-# side to side:
-table_pna_eba <- table_or(logit_pna_eba)
-table_pna_ml <- table_or(logit_pna_ml)
-table_eba_ml <- cbind(table_pna_ml,table_pna_eba)
-colnames(table_eba_ml) <- c("OR_ml","se_ml","P-value_ml","OR_eba","se_eba","P-value_eba")
-rownames(table_eba_ml)[27] <- "pna_factorscore"
-
-# factor score phenotypic correlation 
-pna_eba_ml <- cbind(pna_eba,pna_ml)
-pna_eba_ml <- pna_eba_ml[complete.cases(pna_eba_ml),]
-colnames(pna_eba_ml) <- c(paste0(colnames(pna_eba_ml)[1:5],"_eba"), paste0(colnames(pna_eba_ml)[6:10],"_ml"))
-
-cor(pna_eba_ml)
