@@ -492,3 +492,31 @@ ggplot(out_red, mapping = aes(x=isFemale)) +
   ggtitle("% of participants who preferred not to answer about snoring") +
   theme_bw() +
   theme(plot.title = element_text(size=14, face="bold", hjust = 0.5))
+
+# PNA
+# general factor
+factscores_PNA_g <- factscores_PNA %>% select('V6', 'g') %>% 
+  `colnames<-` (c("s", "phen")) %>% 
+  mutate_at(vars("phen"), funs(round(., 6)))
+write.table(factscores_PNA_g, file='factscores_PNA_g.tsv', quote=FALSE, sep='\t', row.names=FALSE)
+# social status
+factscores_PNA_socialstatus <- factscores_PNA %>% select('V6', 'f1') %>% 
+  `colnames<-` (c("s", "phen")) %>% 
+  mutate_at(vars("phen"), funs(round(., 6)))
+write.table(factscores_PNA_socialstatus, file='factscores_PNA_socialstatus.tsv', quote=FALSE, sep='\t', row.names=FALSE)
+# health
+factscores_PNA_health <- factscores_PNA %>% select('V6', 'f2') %>% 
+  `colnames<-` (c("s", "phen")) %>% 
+  mutate_at(vars("phen"), funs(round(., 6)))
+write.table(factscores_PNA_health, file='factscores_PNA_health.tsv', quote=FALSE, sep='\t', row.names=FALSE)
+# ethnicity
+factscores_PNA_ethnicity <- factscores_PNA %>% select('V6', 'f3') %>% 
+  `colnames<-` (c("s", "phen")) %>% 
+  mutate_at(vars("phen"), funs(round(., 6)))
+write.table(factscores_PNA_ethnicity, file='factscores_PNA_ethnicity.tsv', quote=FALSE, sep='\t', row.names=FALSE)
+# neuroticism
+factscores_PNA_neuroticism <- factscores_PNA %>% select('V6', 'f4') %>% 
+  `colnames<-` (c("s", "phen")) %>% 
+  mutate_at(vars("phen"), funs(round(., 6)))
+write.table(factscores_PNA_neuroticism, file='factscores_PNA_neuroticism.tsv', quote=FALSE, sep='\t', row.names=FALSE)
+
