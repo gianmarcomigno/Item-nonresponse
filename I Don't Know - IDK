@@ -315,3 +315,25 @@ factscores_IDK_ml <- as.data.frame(readRDS(file = "factscores_IDK_ml.rds"))
 factscores_IDK <- lavPredict(fit_cfa_IDK)
 saveRDS(factscores_IDK, file = "factscores_IDK.rds")
 factscores_IDK <- as.data.frame(readRDS(file = "factscores_IDK.rds"))
+
+# IDK
+# general factor
+factscores_IDK_g <- factscores_IDK %>% select('V5', 'g') %>% 
+  `colnames<-` (c("s", "phen")) %>% 
+  mutate_at(vars("phen"), funs(round(., 6)))
+write.table(factscores_IDK_g, file='factscores_IDK_g.tsv', quote=FALSE, sep='\t', row.names=FALSE)
+# neuroticism
+factscores_IDK_neuroticism <- factscores_IDK %>% select('V5', 'f1') %>% 
+  `colnames<-` (c("s", "phen")) %>% 
+  mutate_at(vars("phen"), funs(round(., 6)))
+write.table(factscores_IDK_neuroticism, file='factscores_IDK_neuroticism.tsv', quote=FALSE, sep='\t', row.names=FALSE)
+# lifestyle
+factscores_IDK_lifestyle <- factscores_IDK %>% select('V5', 'f2') %>% 
+  `colnames<-` (c("s", "phen")) %>% 
+  mutate_at(vars("phen"), funs(round(., 6)))
+write.table(factscores_IDK_lifestyle, file='factscores_IDK_lifestyle.tsv', quote=FALSE, sep='\t', row.names=FALSE)
+# health
+factscores_IDK_health <- factscores_IDK %>% select('V5', 'f3') %>% 
+  `colnames<-` (c("s", "phen")) %>% 
+  mutate_at(vars("phen"), funs(round(., 6)))
+write.table(factscores_IDK_health, file='factscores_IDK_health.tsv', quote=FALSE, sep='\t', row.names=FALSE)
