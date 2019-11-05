@@ -1,14 +1,14 @@
 # import full phenotypes dataset
-d <- fread("neale_lab_parsed.tsv", header=T)
+d <- fread("ukb31063.phenotypes.20191008.csv", header=T)
 colnames(d) <- paste0("f.",gsub("x","",gsub("_",".",colnames(d))))
-d1 <- d %>% select("f.20400.0.0", "f.userId", "f.53.0.0", 
-                   grep("1288", colnames(d)), grep("110003", colnames(d)), # 110003 has only NAs 
-                   grep("110001", colnames(d)), grep("110005", colnames(d)))
+# 110003 has only NAs, 110005 not found
+d1 <- d %>% select(grep("20400", colnames(d)), grep("f.eid", colnames(d)), 
+                   grep("12188", colnames(d)),                             
+                   grep("110001", colnames(d)), grep("110005", colnames(d))) 
 saveRDS(d1, file = "recontact_variables.rds")
 
 # read in all files
 alldata <- readRDS("alldata.rds")
-recontact_variables <- readRDS("recontact_variables.rds")
 
 covariates <- fread("ukb31063.neale_gwas_covariates.both_sexes.csv", skip = 1)
 covariates <- covariates[covariates$s %in% alldata$f.userId,] # subset
@@ -41,49 +41,100 @@ covariate_fin$eduYears <- car::recode(covariate_fin$eduYears,  # impute f.6138 a
 
 # remove NAs (complete cases) and save file
 covariate_fin <- covariate_fin %>% na.omit  # 360628 --> 356246 participants
-#saveRDS(covariate_fin, file = "covariate_fin.rds")
-covariate_fin <- readRDS("covariate_fin.rds")
+
+dropped <- covariate_fin[!complete.cases(covariate_fin),"userID"] #id of those 4382 dropped
+
+# pna
+temp <- as.data.frame(cbind(alldata$f.userId, alldata1))
+all_rowsums <- as.data.frame(table(rowSums(temp[,-1])))
+part_rowsums <- as.data.frame(
+  table(rowSums(temp[temp$`alldata$f.userId` %in% dropped,-1])), stringsAsFactors=FALSE)
+add <- all_rowsums[-match(part_rowsums$Var1, all_rowsums$Var1),] %>% transform(Freq = 0)
+part_full <- rbind(part_rowsums, add)
+part_pna <- cbind(all_rowsums,part_full[order(as.numeric(part_full$Var1)),]$Freq) %>% 
+  `colnames<-`(c("# pna", "freq all", "freq drop"))
+part_pna$perc <- round(part_pna$`freq drop`/part_pna$`freq all`*100,2)
+print(part_pna, row.names = F) 
+
+# idk
+temp <- as.data.frame(cbind(alldata$f.userId, alldata2))
+all_rowsums <- as.data.frame(table(rowSums(temp[,-1])))
+part_rowsums <- as.data.frame(
+  table(rowSums(temp[temp$`alldata$f.userId` %in% dropped,-1])), stringsAsFactors=FALSE)
+add <- all_rowsums[-match(part_rowsums$Var1, all_rowsums$Var1),] %>% transform(Freq = 0)
+part_full <- rbind(part_rowsums, add)
+part_idk <- cbind(all_rowsums,part_full[order(as.numeric(part_full$Var1)),]$Freq) %>% 
+  `colnames<-`(c("# idk", "freq all", "freq drop"))
+part_idk$perc <- round(part_idk$`freq drop`/part_idk$`freq all`*100,2)
+print(part_idk, row.names = F) 
 
 
 ###--------------BEST PREDICTOR
 recontact_variables <- readRDS("recontact_variables.rds")
+covariate_fin <- readRDS("covariate_fin.rds")
 
 # Field 110001-1.0: Invitation to complete online 24-hour recall dietary questionnaire - acceptance (1st istance)
-acceptance <- recontact_variables %>% select("f.userId", "f.110001.1.0")
+acceptance <- recontact_variables %>% select("f.eid", "f.110001.1.0")
 acceptance$f.110001.1.0 <- ifelse(acceptance$f.110001.1.0 == 0, 1, 0) #recode (0 non reponse, 2 completed)
-acceptance <- acceptance[acceptance$f.userId %in% covariate_fin$userID,] #subset
+acceptance <- acceptance[acceptance$f.eid %in% covariate_fin$userID,] #subset
 
-covariates_and_outcome <- merge(x = covariate_fin, y = acceptance, by.x = "userID", by.y = "f.userId")
+covariates_and_outcome <- merge(x = covariate_fin, y = acceptance, by.x = "userID", by.y = "f.eid")
 colnames(covariates_and_outcome)[32] <- "nonresponded_diet_questionn_1visit"
-covariates_and_outcome <- covariates_and_outcome[complete.cases(covariates_and_outcome),] # 356246 --> 216453
+covariates_and_outcome <- covariates_and_outcome[complete.cases(covariates_and_outcome),] # 356237 --> 216447
+
 
 # Field 20400: Date of completing mental health questionnaire
-completed_mentalhealth <- recontact_variables %>% select("f.userId", "f.20400.0.0")
-completed_mentalhealth <- completed_mentalhealth[completed_mentalhealth$f.userId %in% covariate_fin$userID, ]
+completed_mentalhealth <- recontact_variables %>% select("f.eid", "f.20400.0.0")
+completed_mentalhealth <- completed_mentalhealth[completed_mentalhealth$f.eid %in% covariate_fin$userID, ]
 completed_mentalhealth$f.20400.0.0 <- ifelse(completed_mentalhealth$f.20400.0.0 == '', 1, 0) # recode: date if completed (as 0), NA if not responded (as 1)
 
-covariates_and_outcome <- as.data.frame((cbind(covariate_fin, completed_mentalhealth$f.20400.0.0)))  # 356246 (all)
+covariates_and_outcome <- merge(x = covariate_fin, y = completed_mentalhealth, by.x = "userID", by.y = "f.eid")
 colnames(covariates_and_outcome)[32] <- "completed_mentalhealth_questionn"
+covariates_and_outcome <- covariates_and_outcome[complete.cases(covariates_and_outcome),] # 356237 (all)
+
 
 #------------- logistic model
-model1 <- glm(nonresponded_diet_questionn_1visit ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
+model1 <- glm(completed_mentalhealth_questionn ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
                 PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20 + 
-                scaled_idk, 
+                health + eduYears + assessm_center + scaled_idk, 
               data = covariates_and_outcome, family = "binomial")
 
-model0 <- glm(nonresponded_diet_questionn_1visit ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
-                        PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20, 
-                        data = covariates_and_outcome, family = "binomial")
+model0 <- glm(completed_mentalhealth_questionn ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
+                PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20, 
+              data = covariates_and_outcome, family = "binomial")
 
-R2logit(model1)-R2logit(model0)
+pseudo_r2_df(model1, model0)
 
-# estimate pseudo r squared for predictor
-R2logit<- function(model){
-  R2<- 1-(model$deviance/model$null.deviance)
-  return(R2)
+# different pseudo rsquared (Efron, McFadden, Nagelkerke and McKelvey)
+#https://www.slideshare.net/MarcoDAlessandro11/pseudor-quadro
+
+pseudo_r2_df <- function(model_1, model_0){
+  print(as.data.frame(cbind(blr_rsq_effron(model_1)-blr_rsq_effron(model_0), # efron 
+                            #blr_rsq_mcfadden(model_1)-blr_rsq_mcfadden(model_0), # mc fadden (not adjusted)
+                            blr_rsq_nagelkerke(model_1)-blr_rsq_nagelkerke(model_0), # nagelkerke
+                            blr_rsq_mckelvey_zavoina(model_1)-blr_rsq_mckelvey_zavoina(model_0)))) # mckelvey
+  }
+
+pseudo_r2_df(model1, model0)
+
+
+# GWAS covariates only
+pseudo_r2_df_covariates_only <- function(model_0){
+  print(as.data.frame(cbind(blr_rsq_effron(model_0), # efron 
+                            blr_rsq_nagelkerke(model_0), # nagelkerke
+                            blr_rsq_mckelvey_zavoina(model_0)))) # mckelvey
 }
+pseudo_r2_df_covariates_only(model0)
 
-R2logit(model1)-R2logit(model2)
+# assessment center in place of PCs
+model1 <- glm(completed_mentalhealth_questionn ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + 
+                assessm_center + scaled_idk + scaled_pna, 
+              data = covariates_and_outcome, family = "binomial")
+model0 <- glm(completed_mentalhealth_questionn ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + 
+                assessm_center, 
+              data = covariates_and_outcome, family = "binomial")
+pseudo_r2_df(model1, model0)
+
 
 # table with results
 table_or <- function(model){
@@ -104,3 +155,107 @@ table_or <- function(model){
 }
 
 table_or(model1)
+
+
+#### pseudo R squared of mental questionnaire by imputing health and eduYears on those 4382 dropped
+
+alldata <- readRDS("alldata.rds")
+covariates <- fread("ukb31063.neale_gwas_covariates.both_sexes.csv", skip = 1)
+covariates <- covariates[covariates$s %in% alldata$f.userId,] # subset
+covariates <- covariates[match(alldata$f.userId, covariates$s),] # sort for userID
+pna_eba <- data.frame(readRDS(file = "factscores_PNA.rds"))['g']
+idk_eba <- data.frame(readRDS(file = "factscores_IDK.rds"))['g']
+covariate_fin <- as.data.frame(
+  cbind(covariates, 
+        alldata$f.54.0.0, alldata$f.2178.0.0, alldata$f.6138.0.0, # f.54: assessment center, f.6138: education, f.2138: health
+        scale(idk_eba), # scaled idk factorscores phenotypes
+        scale(pna_eba)) # scaled pna factorscores phenotypes
+)
+colnames(covariate_fin)[c(1,27:31)] <- c("userID","assessm_center","health","eduYears", "scaled_idk", "scaled_pna")
+covariate_fin$health <- car::recode(covariate_fin$health,   # overall health (1218 idk, 113 pna)
+                                    "-1=NA ; -3=NA ")
+covariate_fin$isFemale <- ifelse(covariate_fin$isFemale == T, 1,0)
+covariate_fin$eduYears <- car::recode(covariate_fin$eduYears,  # impute f.6138 as eduyears in paper ea gwas (james lee et al.)
+                                      "1=20 ; 2=15 ; 3=13 ; 4=12 ;
+                                      5=19 ; 6=17 ; -7=6 ; -3=NA ")
+# Field 20400: Date of completing mental health questionnaire
+completed_mentalhealth <- recontact_variables %>% select("f.eid", "f.20400.0.0")
+completed_mentalhealth <- completed_mentalhealth[completed_mentalhealth$f.eid %in% covariate_fin$userID, ]
+completed_mentalhealth$f.20400.0.0 <- ifelse(completed_mentalhealth$f.20400.0.0 == '', 1, 0) # recode: date if completed (as 0), NA if not responded (as 1)
+
+covariates_and_outcome <- merge(x = covariate_fin, y = completed_mentalhealth, by.x = "userID", by.y = "f.eid")
+colnames(covariates_and_outcome)[32] <- "completed_mentalhealth_questionn"
+
+apply(covariates_and_outcome, 2, function(x) sum(is.na(x)))
+NA2mean <- function(x) replace(x, is.na(x), mean(x, na.rm = TRUE)) # impute with col mean
+test <- as.data.frame(lapply(covariates_and_outcome, NA2mean))
+model1 <- glm(completed_mentalhealth_questionn ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
+                PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20 + 
+                scaled_pna, 
+              data = test, family = "binomial")
+model0 <- glm(completed_mentalhealth_questionn ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
+                PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20, 
+              data = test, family = "binomial")
+
+pseudo_r2_df(model1, model0)
+
+# 2 visit diet questionnaire
+acceptance_all_visits <- recontact_variables %>% select("f.eid", "f.110001.1.0", 
+                                                        "f.110001.2.0", "f.110001.3.0", 
+                                                        "f.110001.4.0")
+acceptance_all_visits <- acceptance_all_visits[!rowSums(is.na(acceptance_all_visits)) == 4, ]
+acceptance_all_visits <- acceptance_all_visits[acceptance_all_visits$f.eid %in% covariate_fin$userID,]
+
+#table(acceptance_all_visits[complete.cases(acceptance_all_visits), 2:5])
+
+# there's a number of diet questionnaire completed variable #Data-Field 20077
+noresponse_all_visits <- acceptance_all_visits[rowSums(acceptance_all_visits[,2:5])==0,]
+completed_all_visits <- acceptance_all_visits[rowSums(acceptance_all_visits[,2:5])>1,]
+
+noresponse_all_visits <- merge(x = covariate_fin, y = noresponse_all_visits, by.x = "userID", by.y = "f.eid")[, c(1,2,28:29,32:35)]
+completed_all_visits <- merge(x = covariate_fin, y = completed_all_visits, by.x = "userID", by.y = "f.eid")[, c(1,2,28:29,32:35)]
+
+# statistics on sex and eduYears
+noresponse_all_visits_stats <- round(c(summary(noresponse_all_visits$eduYears), 
+           sd(noresponse_all_visits$eduYears), 
+           table(noresponse_all_visits$isFemale)/nrow(noresponse_all_visits)*100),3)
+names(noresponse_all_visits_stats) <- c("Min.", "1st Qu.",  "Median",
+                                           "Mean", "3rd Qu.",   "Max.", "sd", "% male", "% female")
+
+completed_all_visits_stats <- round(c(summary(completed_all_visits$eduYears), 
+                                       sd(completed_all_visits$eduYears), 
+                                       table(completed_all_visits$isFemale)/nrow(completed_all_visits)*100),3)
+names(completed_all_visits_stats) <- c("Min.", "1st Qu.",  "Median",
+                                        "Mean", "3rd Qu.",   "Max.", "sd", "% male", "% female")
+
+# creates table for EDUYEARS
+completed_all_visits_eduyears <- completed_all_visits[,c(1,4)]
+colnames(completed_all_visits_eduyears) <- c('s', 'phen')
+write.table(completed_all_visits_eduyears, file='completed_all_visits_EDUYEARS.tsv', quote=FALSE, sep='\t', row.names=FALSE)
+
+noresponse_all_visits_eduyears <- noresponse_all_visits[,c(1,4)]
+colnames(noresponse_all_visits_eduyears) <- c('s', 'phen')
+write.table(noresponse_all_visits_eduyears, file='noresponse_all_visits_EDUYEARS.tsv', quote=FALSE, sep='\t', row.names=FALSE)
+
+# creates table for SEX
+completed_all_visits_sex <- completed_all_visits[,c(1,2)]
+colnames(completed_all_visits_sex) <- c('s', 'phen')
+write.table(completed_all_visits_sex, file='completed_all_visits_SEX.tsv', quote=FALSE, sep='\t', row.names=FALSE)
+
+noresponse_all_visits_sex <- noresponse_all_visits[,c(1,2)]
+colnames(noresponse_all_visits_sex) <- c('s', 'phen')
+write.table(noresponse_all_visits_sex, file='noresponse_all_visits_SEX.tsv', quote=FALSE, sep='\t', row.names=FALSE)
+
+# responded to all questionnaires
+completed_4_visits <- acceptance_all_visits[rowSums(acceptance_all_visits[,2:5])==8,]
+completed_4_visits <- completed_4_visits[completed_4_visits$f.eid %in% covariate_fin$userID,]
+completed_4_visits <- merge(x = covariate_fin, y = completed_4_visits, by.x = "userID", by.y = "f.eid")[, c(1,2,28:29,32:35)]
+# eduyears
+completed_4_visits_eduyears <- completed_4_visits[,c(1,4)]
+colnames(completed_4_visits_eduyears) <- c('s', 'phen')
+write.table(completed_4_visits_eduyears, file='completed_4_visits_EDUYEARS.tsv', quote=FALSE, sep='\t', row.names=FALSE)
+# sex
+completed_4_visits_sex <- completed_4_visits[,c(1,2)]
+colnames(completed_4_visits_sex) <- c('s', 'phen')
+write.table(completed_4_visits_sex, file='completed_4_visits_SEX.tsv', quote=FALSE, sep='\t', row.names=FALSE)
+
