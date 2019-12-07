@@ -1,0 +1,497 @@
+################################################################
+# figure_pna_idk_items
+################################################################
+# note: 1 dots and text larger (readable when printed)
+# 2 panel one below the other
+# 3 logarith scale since the yvalues have to be in the same scale (to be comparable)
+
+alldata <- readRDS('alldata.rds', refhook = NULL)
+
+# scatterplot pna
+pna <- alldata %>% dplyr::select(-f.userId, -f.54.0.0, -f.2129.0.0) %>%
+  mutate_all(funs(ifelse(.==-3,1,0))) %>% 
+  summarise_each(funs(sum)) %>%
+  t %>%
+  as.data.frame() %>%
+  rownames_to_column() %>%
+  mutate(V1= V1/360628, # proportion
+         z=1:n(),
+         lab = c('First Question',rep(' ',82),'Last Question',rep(' ',25)),
+         rowname=replace(rowname, rowname == 'f.1100.0.0', 'How often do you drive faster than the speed limit on the motorway?'),
+         # change to: did you suffer painful sunburn during your childhood? 
+         # or: numbers of painful sunburn occasions during childhood
+         rowname=replace(rowname, rowname == 'f.1210.0.0', 'Does your partner or a close relative or friend complain about your snoring?'),
+         rowname=replace(rowname, rowname == 'f.6138.0.0', 'Which of educational qualifications do you have?'))
+
+p1 <- ggplot(pna, aes(x=factor(z), y=V1)) + 
+  geom_point(shape=18, size=4) + 
+  geom_text(aes(label=ifelse(V1>.7, as.character(rowname),'')),hjust=-.02,vjust=0.4,size=5) +
+  xlab("") +
+  ylab("PNA") +
+  #ylab('Participants (%) who chose the option "Prefer not to answer"') +
+  scale_x_discrete(breaks= pna$z, labels = pna$lab) +
+  scale_y_continuous(trans = log10_trans(),
+                     labels = function(x) format(x, scientific = FALSE,
+                                                 drop0trailing = T), # labels=comma
+                     limits = c(10^-4,1)) +
+  annotation_logticks(sides = 'l') +
+  theme(legend.position="none",
+        plot.title = element_text(hjust =-.045, vjust=2.5, face = "bold"),
+        axis.ticks=element_blank(),
+        panel.border = element_blank(),
+        axis.line.x = element_line(size = 0.5, linetype = "solid", colour = "black"),
+        axis.line.y = element_line(size = 0.5, linetype = "solid", colour = "black"),
+        axis.text.x=element_text(size=15,hjust=0,vjust=0.2)) +
+  ggtitle("a") #+
+  #labs(title = 'Number of "Prefer not to answer" per variable', subtitle = 'Mean: 584 (SE=891)') +
+  #geom_smooth(aes(x=factor(z), y=V1*360628), method = "glm.nb", colour="black", size=0.5)  # P: coef(summary(glm(pna$V1 ~ pna$z)))[,4] ---> NOT WORKING SINCE NOW Z IS FACTOR 
+
+
+# negative binomial regression
+#https://stackoverflow.com/questions/23803458/add-negative-binomial-distribution-to-scatterplot
+nbGLM <- glm.nb(resp ~ race, data=victim)
+
+
+
+# select only those with the idk option
+not_idk <- c(names(which(colSums(alldata==-1)==0)))
+idk <- alldata %>% dplyr::select(-not_idk, -f.1647.0.0) %>%
+  mutate_all(funs(ifelse(.==-1,1,0))) %>%
+  summarise_each(funs(sum)) %>%
+  t %>%
+  as.data.frame() %>%
+  rownames_to_column() %>%
+  mutate(V1= V1/360628, # percentage
+         z=1:n(),
+         lab = c('First Question',rep(' ',59),'Last Question',rep(' ',22)),
+         rowname=replace(rowname, rowname == 'f.1737.0.0', 'During your childhood, how many times did you suffer painful sunburn?'),
+         rowname=replace(rowname, rowname == 'f.1677.0.0', 'Were you breastfed when you were a baby?'),
+         rowname=replace(rowname, rowname == 'f.1180.0.0', 'Do you consider yourself a "morning" or "evening" person?'))
+
+# not this one!
+p2 <- ggplot(idk, aes(x=factor(z), y=V1)) + 
+  geom_point(shape=18, size=4) + 
+  geom_text(aes(label=ifelse(V1>10, as.character(rowname),'')),hjust=-.02,vjust=0.4, size=5) +
+  xlab("") +
+  ylab('Participants (%) who chose the option "I don\'t know"') +
+  scale_x_discrete(breaks= idk$z, labels = idk$lab) +
+  #scale_y_continuous(expand = expand_scale(mult = c(0.01,.04))) +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        legend.position="none",
+        plot.title = element_text(hjust =-.04, vjust=2.5, face = "bold"),
+        axis.ticks=element_blank(),
+        panel.border = element_blank(),
+        axis.line.x = element_line(size = 0.5, linetype = "solid", colour = "black"),
+        axis.line.y = element_line(size = 0.5, linetype = "solid", colour = "black"),
+        #panel.border = element_rect(colour = "black", fill=NA, size=1), 
+        axis.text.x=element_text(size=15,hjust=0,vjust=0.2)) +
+  ggtitle("b") #+
+  #labs(title = 'Number of "Prefer not to answer" per variable', subtitle = 'Mean: 584 (SE=891)') +
+  #geom_smooth(aes(x=z, y=V1), method = "glm", colour="black", size=0.5)  # P: coef(summary(glm(pna$V1 ~ pna$z)))[,4] ---> NOT WORKING SINCE NOW Z IS FACTOR 
+
+p2 <- ggplot(idk, aes(x=factor(z), y=V1)) + 
+  geom_point(shape=16, size=4, color = "green") + # shape=18, 
+  geom_text(aes(label=ifelse(V1>.7, as.character(rowname),'')),hjust=-.02,vjust=0.4,size=5) +
+  xlab("") +
+  ylab("IDK") +
+  #ylab('Participants (%) who chose the option "Prefer not to answer"') +
+  scale_x_discrete(breaks= idk$z, labels = idk$lab) +
+  scale_y_continuous(trans = log10_trans(),
+                     labels = function(x) format(x, scientific = FALSE,
+                                                 drop0trailing = T), # labels=comma
+                     limits = c(10^-4,1),
+                     position = "right") +
+  annotation_logticks(sides = 'r') +
+  theme(legend.position="none",
+        plot.title = element_text(hjust =-.045, vjust=2.5, face = "bold"),
+        axis.ticks=element_blank(),
+        #panel.border = element_rect(colour = "black", fill=NA),
+        axis.line.x = element_line(size = 0.5, linetype = "solid", colour = "black"),
+        axis.line.y = element_line(size = 0.5, linetype = "solid", colour = "black"),
+        axis.text.x=element_text(size=15,hjust=0,vjust=0.2)) +
+  ggtitle("b") #+
+  #labs(title = 'Number of "Prefer not to answer" per variable', subtitle = 'Mean: 584 (SE=891)') +
+  #geom_smooth(aes(x=factor(z), y=V1*360628), method = "glm.nb", colour="black", size=0.5)  # P: coef(summary(glm(pna$V1 ~ pna$z)))[,4] ---> NOT WORKING SINCE NOW Z IS FACTOR 
+
+
+grid.arrange(p1, p2, ncol=2, widths=c(2.05/4, 1.95/4)) #export A4 landscape (8x25 inches)
+
+################################################################
+# figure_tetra_pna_idk
+################################################################
+alldata <- readRDS('alldata.rds', refhook = NULL)
+# Create tetrachoric matrix
+not_idk <- c(names(which(colSums(alldata==-1)==0)))
+idk_tetra <- alldata %>% dplyr::select(-not_idk, -f.1647.0.0) %>%
+  mutate_all(funs(ifelse(.==-1,1,0))) %>%
+  tetrachoric %>%
+  extract2(1) %>%
+  as.data.frame
+
+pna_tetra <- alldata %>% dplyr::select(colnames(idk_tetra)) %>%
+  mutate_all(funs(ifelse(.==-3,1,0))) %>%
+  tetrachoric %>%
+  extract2(1) %>%
+  as.data.frame
+
+new <- matrix(0, nrow = 83, ncol = 83)
+new[lower.tri(new)] <- idk_tetra[lower.tri(idk_tetra)]
+new[upper.tri(new)] <- pna_tetra[upper.tri(pna_tetra)]
+rownames(new) <- colnames(new) <- colnames(pna_tetra)
+
+stats_idk <- alldata %>% select(colnames(idk_tetra)) %>%
+  mutate_all(funs(ifelse(.==-3,1,0)))
+
+# PNA: mean correlation big clusters
+# mental health: 1920 --> 2110. 20 items
+pna_tetra %>% select(48 : 67) %>%
+  slice(48 : 67) %>%
+  as.matrix %>%
+  mean
+# food: 1289 --> 1548. 19 items
+pna_tetra %>% select(20 : 38) %>%
+  slice(20 : 38) %>%
+  as.matrix %>%
+  mean
+# health: 2178/88, 2296, 2306, 2316 fino 2247. 16 items
+pna_tetra %>% select(68 : 83) %>%
+  slice(68 : 83) %>%
+  as.matrix %>%
+  mean
+mean(c(0.7704444, 0.8813189, 0.8078948)) # 0.82 vs 0.7
+
+#IDK
+# mental health: 1920 --> 2110. 20 items
+idk_tetra %>% select(48 : 67) %>%
+  slice(48 : 67) %>%
+  as.matrix %>%
+  mean
+# food: 1289 --> 1548. 19 items
+idk_tetra %>% select(20 : 38) %>%
+  slice(20 : 38) %>%
+  as.matrix %>%
+  mean
+# health: 2178/88, 2296, 2306, 2316 fino 2247. 16 items
+idk_tetra %>% select(68 : 83) %>%
+  slice(68 : 83) %>%
+  as.matrix %>%
+  mean
+mean(c(0.379518, 0.5556611, 0.3217849)) # 0.42 vs 0.3
+
+
+# plot heatmap tetrachoric correlation with the questions in common
+melted_cormat <- melt(new, na.rm = F)
+
+ggplot(data = melted_cormat, aes(x=Var2, y=Var1, fill = value))+
+  geom_tile(color = "black")+
+  scale_fill_gradient2(low = "blue", high = "darkgreen", mid = "white", 
+                       midpoint = 0, space = "Lab", name='', breaks=c(0,.2,.4,.6,.8,1)) +
+  #scale_fill_discrete(name = melted_cormat$value, labels = c("A", "B", "C"))
+  theme(axis.text.x= element_blank(),
+        axis.text.y = element_blank(),
+        axis.line.x = element_blank(),
+        axis.line.y = element_blank(),
+        axis.ticks=element_blank(),
+        legend.position='right',
+        legend.box.margin=margin(-1,-1,-1,-1))  +
+  xlab('Questions answered "Prefer not to answer"') +
+  # "question answered IDK"
+  ylab('Questions answered "I don\'t know"')
+
+
+################################################################
+# figure_corr_phen_vs_genot
+################################################################
+
+library(corrplot)
+
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args)!=3)
+{
+  stop("Requires exactly three arguments (correlation matrix, p-value matrix and number of tests performed [to support non-symmetry, if needed - ie. analysing only traits 1-3 against 4-6; enter 0 to use all pairs])", call.=FALSE)
+}
+
+corrtablename <- args[1]
+pvaluetablename <- args[2]
+ntests <- as.numeric(args[3])
+output <- paste(corrtablename,".png",sep="")
+
+datacorr <- as.matrix(read.table(corrtablename, header=T, sep="\t", quote="", check.names=FALSE))
+# create the matrix of correlation
+datacorr <- matrix(c(1,0.1,0.3, 0.1,1,0.5,0.3,0.5,1), 3, 3)
+
+datap <- as.matrix(read.table(pvaluetablename, header=F, sep="\t", quote=""))
+# create the matrix of pvalues
+datap <- matrix(c(1,0.1,0.05, 0.1,1,0.5,0.05,0.5,1), 3, 3)
+
+dataz <- qnorm(datap/2, lower.tail = F)
+
+if (ntests==0)
+{
+  ntests <- (dim(datap)[1]*(dim(datap)[2] - 1) / 2)
+}
+
+diag(datacorr) <- 1
+diag(datap) <- 0.5
+datap_null <- datap == 0
+datap[datap_null] <- 0.5
+
+overflow_upp <- datacorr > 1            #LDSC point estimates can be trivially >1 or <-1; however if your correlation is significantly outside of bounds, an error is likely to have occurred
+overflow_low <- datacorr < -1
+datacorr[overflow_upp] <- 1
+datacorr[overflow_low] <- -1
+
+datap <- 1 - datap
+bonf_threshold <- 0.05/ntests
+bonf_z <- qnorm(bonf_threshold, lower.tail=F)
+diag(dataz) <- bonf_z
+
+sig <- dataz > bonf_z
+dataz[sig] <- bonf_z
+sig <- dataz < -bonf_z
+dataz[sig] <- -bonf_z
+
+dataz <- (dataz / bonf_z) * sqrt(0.8)
+uppCI <- sign(dataz) * abs(dataz)^2
+lowCI <- sign(dataz) * abs(dataz)^2
+
+abs <- dataz > 0
+sig <- datap > (1 - bonf_threshold)
+lowCI[abs] <- 0.0001
+uppCI[abs&sig] <- 0.8
+uppCI[!abs] <- -0.0001
+lowCI[!abs&sig] <- -0.8
+
+diag(uppCI) <- 0.8
+diag(lowCI) <- 0.0001
+
+bonf_threshold <- 1 - bonf_threshold
+
+png(output, height=4000,width=5200, pointsize=20, type="cairo")
+
+rownames(datacorr) <- colnames(datacorr)
+
+corrplot(datacorr, method="square", is.corr=TRUE, p.mat=datap, sig.level=bonf_threshold, pch="*", pch.cex = 6, pch.col = "black", insig="pch", tl.cex=6, tl.col="black", tl.pos=2.5, tl.srt=45, addgrid.col="black", type="lower", cl.pos="r", cl.cex = 6, cl.ratio=0.4 , diag=T, plotCI="square", lowCI.mat=lowCI, uppCI.mat=uppCI)
+
+#       For clustering the phenotypes based on hierarchical clustering, add the following parameter to the corrplot line:  order = "hclust",
+dev.off()
+
+
+################################################################
+# distribution mean participation per item and per participant
+################################################################
+alldata <- readRDS('alldata.rds', refhook = NULL)
+
+# pna 
+not <- c(names(which(colSums(alldata==-3)==0)))
+alldata1<-alldata[,!colnames(alldata) %in% not, with =F]
+alldata1 <- as.data.frame(ifelse(alldata1==-3,1,0))
+
+pna_per_partic <- alldata1 %>%
+  adorn_totals("col") #rowSums
+
+p1 <- ggplot(data=pna_per_partic, aes(x="",y=Total)) +
+  geom_boxplot()
+
+# idk
+not1 <- c(names(which(colSums(alldata==-1)==0)))
+alldata2 <- alldata[,!colnames(alldata) %in% c(not1,"f.1647.0.0"), with=F]
+alldata2 <- as.data.frame(ifelse(alldata2==-1,1,0))
+
+idk_per_partic <- alldata2 %>%
+  adorn_totals("col") #rowSums
+
+table(rowSums(alldata1))
+
+p2 <- ggplot(data=idk_per_partic, aes(x="",y=Total)) +
+  geom_boxplot()
+
+grid.arrange(p1, p2, nrow = 1)
+
+
+# distribution per item
+#fancy scatterplot: https://www.r-graph-gallery.com/5-correlation-of-discrete-variables.html
+
+pna_per_item <- as.data.frame(colSums(alldata1))
+idk_per_item <- as.data.frame(colSums(alldata2))
+
+merge(pna_per_item, idk_per_item, by="row.names", all.x = T)
+
+idk_vs_pna <- cbind.fill(as.data.frame(colSums(alldata1)),
+                         as.data.frame(colSums(alldata2)), fill = NA);
+
+ggplot(data=stack(idk_vs_pna), aes(x=ind,y= values)) +
+  geom_boxplot()
+
+p4 <- ggplot(data=pna_per_item, aes(x="",y=colSums(alldata1))) +
+  geom_boxplot()
+
+grid.arrange(p3, p4, nrow = 1)
+
+plot(pna_per_item)
+
+################################################################
+# volcano plot idk and pna phenotypes with heritable traits
+################################################################
+# load in both the h2part file and the file with the rg of pna and idk
+heritable_var <- read_delim("ukb31063_h2part_z4_reduced.csv", ";", 
+                            escape_double = FALSE, trim_ws = TRUE) %>%
+                  as.data.frame %>%
+                  select(phenotype,description)
+  
+# rg PNA  
+# import manually rg_PNA_5fac
+rg_PNA <- rg_PNA %>%
+  mutate(Domain = replace(Domain, Domain=="skeletal", "Skeletal"))    
+
+ggplot(rg_PNA, aes(x=rg, y=-log10(p), colour=Domain)) +
+  geom_point(aes(size=-log10(p))) +
+  #xlim(limits=c(-.55,.55)) +
+  #ylim(limits=c(0,120)) +
+  theme_bw() +
+  xlab("Genetic correlation PNA phenotypes and other traits") + ylab("-Log10(p-value)") +
+  theme (legend.position = "none",
+         axis.text=element_text(size=11), 
+         axis.title=element_text(size=14,face="bold")) +
+  geom_text_repel(data = subset(rg_PNA, -log10(p)>45 & abs(rg)>0.4),  # | abs(rg)>0.6
+                  aes(label=description), 
+                  colour="black",
+                  nudge_y = 2,
+                  direction = "x")
+
+sum(rg_IDK$phenotype %in% rg_PNA$phenotype)
+
+
+# rg IDK    
+out_matrix_rg <- function(name_file){
+  library(plyr)
+  matrix <- read_csv(name_file, 
+                     col_types = cols(p1 = col_skip(), se = col_skip()))
+  heritable_var <- read_delim("ukb31063_h2part_z4_reduced.csv", ";", 
+                              escape_double = FALSE, trim_ws = TRUE) %>%
+                  as.data.frame
+  
+  heritable_var_sub <- heritable_var[,c("phenotype","description")]
+  matrix_sub <- matrix[,c("p2","rg","z","p")]
+  colnames(matrix_sub) <- c("phenotype","rg","z","p")
+  # Prepare name for join
+  matrix_sub$phenotype <- gsub('"',"",gsub('^.|.$', '', gsub('^.*pheno\\s*|\\s*ldsc.*$', '', matrix_sub$phenotype)))
+  
+  join1 <- as.data.frame(join(matrix_sub,heritable_var_sub,by="phenotype",type = "left"))
+}
+
+rg_IDK <- out_matrix_rg("rg_gwas_IDK_4fac_metric.csv") %>%
+  mutate(Domain = rg_PNA$Domain)
+
+ggplot(rg_IDK, aes(x=rg, y=-log10(p), colour=Domain)) +
+  geom_point(aes(size=-log10(p))) +
+  #xlim(limits=c(-.55,.55)) +
+  #ylim(limits=c(0,120)) +
+  theme_bw() +
+  xlab("Genetic correlation IDK phenotypes and other traits") + ylab("-Log10(p-value)") +
+  theme (legend.position = "none",
+         axis.text=element_text(size=11), 
+         axis.title=element_text(size=14,face="bold")) +
+  geom_text_repel(data = subset(rg_IDK, -log10(p)>45 & abs(rg)>0.4),  # | abs(rg)>0.6
+                  aes(label=description), 
+                  colour="black",
+                  nudge_y = 2,
+                  direction = "x")
+
+
+
+# comparison rg psychiatric idk and pna
+r <- rg_PNA %>% 
+  filter(Domain %in% c("Neurological", "Psychiatric", "Cognitive")) %>%
+  select(rg) %>%
+  as.data.frame %>%
+  na.omit 
+
+e <- rg_IDK %>% 
+  filter(Domain %in% c("Neurological", "Psychiatric", "Cognitive")) %>%
+  select(rg) %>%
+  as.data.frame %>%
+  na.omit 
+
+# how many items are there in the rg traits
+all <- gsub("_.*", "", rg_IDK$phenotype)
+few <- gsub("(?:[^.]+\\.){1}([^.]+).*", "\\1", pna$rowname)
+
+sum(few %in% all)/109*100
+
+
+
+
+
+rg_PNA <- read_csv("rg_PNA_5cfa.csv", 
+                   col_types = cols(X1 = col_skip())) %>%
+  mutate(Domain = replace(Domain, Domain=="skeletal", "Skeletal"))     
+
+ggplot(rg_PNA, aes(x=rg, y=-log10(p), colour=Domain)) +
+  geom_point(aes(size=-log10(p))) +
+  #xlim(limits=c(-.55,.55)) +
+  #ylim(limits=c(0,120)) +
+  theme_bw() +
+  xlab("Genetic correlation PNA phenotypes and other traits") + ylab("-Log10(p-value)") +
+  theme (legend.position = "none",
+         axis.text=element_text(size=11), 
+         axis.title=element_text(size=14,face="bold")) +
+  geom_text_repel(data = subset(rg_PNA, -log10(p)>40 & abs(rg)>0.4),  # | abs(rg)>0.6
+                  aes(label=description), 
+                  colour="black",
+                  nudge_y = 2,
+                  direction = "x")
+
+
+
+
+
+
+
+
+# read in file to make volcano plot with unadjusted rg
+pna_idk <- read.csv("pna_idk_comparison.csv")
+names(pna_idk$Traits[c(6,31, 17, 13)]) <- c("Educational Attainment", "Loneliness", "Low self rated health", " Schizophrenia")
+levels(pna_idk$Traits)[c(16,22,36,30)] <- c("Educational Attainment", "Loneliness", "Low self rated health", " Schizophrenia")
+
+
+# WARNING (no correct colnames): pna adj it's in fact unadj, for idk it's correct
+ggplot(pna_idk, aes(x=rg_pna_unadj, y=-log10(pvalue_rg_pna_unadj))) +
+  geom_point(aes(x=rg_pna_unadj, y=-log10(pvalue_rg_pna_unadj)))
+
+limits <- c(-100,85)
+breaks <- seq(limits[1], limits[2], by=20)
+
+p1 <- ggplot(pna_idk, aes(x=rg_pna_adj, y=-log10(pvalue_rg_pna_adj), size=1.8)) +
+  geom_point() +
+  xlim(limits=c(-.55,.55)) +
+  ylim(limits=c(0,90)) +
+  theme_bw() +
+  xlab("Genetic correlation PNA") + ylab("-Log10(p-value)") +
+  theme (legend.position = "none",
+         axis.text=element_text(size=11), 
+         axis.title=element_text(size=14,face="bold")) +
+  geom_text_repel(data = subset(pna_idk, -log10(pvalue_rg_pna_adj)>20 | -log10(pvalue_rg_pna_adj) > 9.459 & -log10(pvalue_rg_pna_adj) < 9.46),
+                  aes(rg_pna_adj,-log10(pvalue_rg_pna_adj),label=Traits),
+                  nudge_y = 10,
+                  direction = "x")
+
+p2 <- ggplot(pna_idk, aes(x=rg_idk_unadj, y=-log10(pvalue_rg_idk_unadj),  size=1.8)) +
+  geom_point() +
+  theme_bw() +
+  xlim(limits=c(-.55,.55)) +
+  ylim(limits=c(0,90)) +
+  xlab("Genetic correlation IDK") + ylab("-Log10(p-value)") +
+  theme (legend.position = "none",
+         axis.text=element_text(size=11), 
+         axis.title=element_text(size=14,face="bold")) +
+  geom_text_repel(data = subset(pna_idk, -log10(pvalue_rg_idk_unadj)>22 | -log10(pvalue_rg_idk_unadj) > 0.24 & -log10(pvalue_rg_idk_unadj) < 0.25),
+                  aes(rg_pna_adj,-log10(pvalue_rg_idk_unadj),label=Traits),
+                  nudge_y =-1,
+                  direction = "x")
+
+grid.arrange(p1, p2, ncol=2, top = textGrob("Genetic correlation IDK/PNA with other traits",
+                                            gp=gpar(fontsize=20,font=2)))
+
