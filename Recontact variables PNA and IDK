@@ -259,3 +259,65 @@ completed_4_visits_sex <- completed_4_visits[,c(1,2)]
 colnames(completed_4_visits_sex) <- c('s', 'phen')
 write.table(completed_4_visits_sex, file='completed_4_visits_SEX.tsv', quote=FALSE, sep='\t', row.names=FALSE)
 
+###########################################################
+recontact_variables <- readRDS("recontact_variables.rds")
+covariate_fin <- readRDS("covariate_fin.rds")
+
+# imputed covariates fin (prior to na.omit) for eduyears and health
+mean(covariate_fin$health, na.rm = T)
+covariate_fin <- covariate_fin %>% 
+  mutate_all(~ifelse(is.na(.x), mean(.x, na.rm = TRUE), .x))
+
+# Field 110001-1.0: Invitation to complete online 24-hour recall dietary questionnaire - acceptance (1st istance)
+acceptance <- recontact_variables %>% select("f.eid", "f.110001.1.0") %>% 
+  mutate(f.110001.1.0 = if_else(f.110001.1.0 == 0, 1, 0)) %>% #recode (0 non reponse, 2 completed)
+  filter(f.eid %in% covariate_fin$userID) %>% #subset
+  left_join(covariate_fin, by = c("f.eid" = "userID")) %>%
+  rename(nonresponded_diet_questionn_1visit = f.110001.1.0) %>% 
+  na.omit # 356237 --> 216447
+
+#logistic model
+model1 <- glm(nonresponded_diet_questionn_1visit ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
+                PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20 + 
+                health + eduYears + 
+                scaled_idk +    #0.0003
+                scaled_pna,     #0.0010
+              data = acceptance, family = "binomial")
+
+model0 <- glm(nonresponded_diet_questionn_1visit ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
+                PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20 +
+              health + eduYears,
+              data = acceptance, family = "binomial")
+
+blr_rsq_mckelvey_zavoina(model1)-blr_rsq_mckelvey_zavoina(model0)
+
+# Field 110001-1.0: Invitation to complete online 24-hour recall dietary questionnaire - acceptance (1st istance) - 
+# NON-RESPONDED ALL VISITS (1) vs COMPLETED ALL VISITS (0)
+none_vs_all <- recontact_variables %>% select("f.eid", "f.110001.1.0", "f.110001.2.0", "f.110001.3.0", "f.110001.4.0") %>% 
+  mutate(none = case_when(
+    f.110001.1.0+f.110001.2.0+f.110001.3.0+f.110001.4.0 == 8 ~ 0, 
+    f.110001.1.0+f.110001.2.0+f.110001.3.0+f.110001.4.0 == 0 ~ 1, 
+    TRUE ~ NA_real_)) %>% #recode (1 non-reponded to all visits, 0 completed all visits, NA: completed some visits)
+  filter(f.eid %in% covariate_fin$userID) %>% #subset
+  left_join(covariate_fin, by = c("f.eid" = "userID")) %>%
+  rename(nonresponded_all_visits = none) %>% 
+  select(-c("f.110001.1.0", "f.110001.2.0", "f.110001.3.0", "f.110001.4.0")) %>%
+  na.omit # 356237 --> 216447
+
+model1 <- glm(nonresponded_all_visits ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
+                PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20 + 
+                health + eduYears + 
+                scaled_idk +    #0.0012
+                scaled_pna,     #0.0027
+              data = none_vs_all, family = "binomial")
+
+model0 <- glm(nonresponded_all_visits ~ isFemale + age + age_squared + age_isFemale + age_squared_isFemale + PC1 + PC2 + PC3 + PC4 +
+                PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20 +
+                health + eduYears,
+              data = none_vs_all, family = "binomial")
+
+blr_rsq_mckelvey_zavoina(model1)-blr_rsq_mckelvey_zavoina(model0)
+
+
+acceptance <- recontact_variables %>% select("f.eid", "f.110001.1.0", "f.110001.2.0", "f.110001.3.0")
+t <- acceptance %>% filter(rowSums(is.na(.))==1)
