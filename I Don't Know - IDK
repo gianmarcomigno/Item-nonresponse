@@ -337,3 +337,70 @@ factscores_IDK_health <- factscores_IDK %>% select('V5', 'f3') %>%
   `colnames<-` (c("s", "phen")) %>% 
   mutate_at(vars("phen"), funs(round(., 6)))
 write.table(factscores_IDK_health, file='factscores_IDK_health.tsv', quote=FALSE, sep='\t', row.names=FALSE)
+
+## create files with genetic correlations:
+# idk
+dat <- readRDS("results_IDK_adjPNA_genomic_sem.rds") %>%
+  join(., readRDS("results_IDK_adjINCOME_genomic_sem.rds"), by=c('rhs')) %>%
+  join(., readRDS("results_IDK_adjEA_genomic_sem.rds"), by=c('rhs')) %>%
+  set_colnames(c("p1", "op", "p2","se_IDK_adjPNA", "rg_IDK_adjPNA",
+                 "x","xx", "se_IDK_adjINCOME", "rg_IDK_adjINCOME",
+                 "xxx", "xxxx", "se_IDK_adjEA", "rg_IDK_adjEA")) %>% # merge all rg_adjusted
+  select(p1, op, p2, rg_IDK_adjPNA, se_IDK_adjPNA,rg_IDK_adjINCOME, se_IDK_adjINCOME,rg_IDK_adjEA, se_IDK_adjEA) %>%
+  mutate(p2 = gsub("munged_sumstats_Andrea//|sumstats_phenotypes//|.ldsc.imputed_v3.both_sexes.tsv","", .$p2)) %>%
+  left_join(x=., y= {read.csv("rg_gwas_IDK_4fac_metric.csv")} %>%
+              mutate(p2 = gsub("./pheno/|.ldsc.imputed_v3.both_sexes.tsv.bgz","", .$p2)), # match with rg_unadjusted
+            by=c('p2')) %>%
+  select(-c(p1.y, z, h2_obs_se, h2_int, h2_int_se, gcov_int, gcov_int_se, h2_obs)) %>%
+  left_join(x=., y= {read.csv("ukb31063_h2part_z4_reduced.csv", sep=";")}, by=c('p2'='phenotype')) %>% # get pheno names
+  select(-c(n, h2_observed))
+
+new_rg <- read.csv("pna_idk_comparison.csv", sep = ";") %>%  # get rg from other file
+  na.omit %>%
+  .[order(.$Traits),] %>%
+  select(Traits, rg_idk_unadj, pvalue_rg_idk_unadj) %>%
+  mutate(Traits=dat$p2[648:685]) # get colnames from dat to match in left_join
+
+dat1 <- dat %>%
+  left_join(x=., y= new_rg, by=c('p2'='Traits')) %>%
+  mutate(rg = coalesce(rg, rg_idk_unadj),
+         p = coalesce(p, pvalue_rg_idk_unadj),
+         description = coalesce(description, p2)) %>%
+  select(-c(pvalue_rg_idk_unadj,rg_idk_unadj)) %>%
+  mutate(pvalue_IDK_adjPNA = 2*pnorm(-abs(rg_IDK_adjPNA/se_IDK_adjPNA)),
+         pvalue_IDK_adjINCOME = 2*pnorm(-abs(rg_IDK_adjINCOME/se_IDK_adjINCOME)),
+         pvalue_IDK_adjEA = 2*pnorm(-abs(rg_IDK_adjEA/se_IDK_adjEA)))  %>% # pvalue: z=rg/se and then 2*pnorm(-abs(z))
+  select(p1.x, op, p2, description, 
+         rg_IDK_adjPNA, se_IDK_adjPNA, pvalue_IDK_adjPNA, 
+         rg_IDK_adjINCOME, se_IDK_adjINCOME, pvalue_IDK_adjINCOME,
+         rg_IDK_adjEA, se_IDK_adjEA, pvalue_IDK_adjEA, 
+         rg, se, p)
+
+
+colSums(is.na(dat1))
+
+# adjusted rg obtained as:
+adjmodel <- 'IDK ~ PNA
+trait ~ PNA
+IDK ~~ trait'
+
+names <- c("IDK","trait","PNA")
+
+results <- data.frame()
+
+for(file in files){
+  Data <- ldsc(traits =c('IDK.sumstats.gz',
+                         file,
+                         'PNA.sumstats.gz'),
+               sample.prev = c(NA,NA,NA), # traits are continue
+               population.prev = c(NA,NA,NA),
+               trait.names = names,
+               ld ="eur_w_ld_chr/",
+               wld="eur_w_ld_chr/" )
+  
+  newline <- usermodel(Data, estimation = "DWLS", model = adjmodel)$results[2,] %>%
+    mutate(rhs = replace(rhs, rhs == "trait", file)) %>% select(-Unstand_Est,-Unstand_SE,-STD_Genotype)
+  
+  results <- rbind(results, newline)
+  saveRDS(results, "results_IDK_adjPNA_genomic_sem.rds") 
+}
