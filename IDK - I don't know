@@ -108,6 +108,11 @@ colnames(IDK_pruned_sum) <- col_names_IDK
 
 IDK_pruned_sum  <- as.data.frame(apply(IDK_pruned_sum, 2, ordered))
 
+
+########################################################
+#                  FACTOR ANALYSIS                     #
+########################################################
+
 # model
 cfa_IDK <- '
       g	=~   f.21000.0.0 + f.6139.0.0 + branch_34 +  branch_37  + branch_39  + f.1100.0.0 + f.2277.0.0 +
