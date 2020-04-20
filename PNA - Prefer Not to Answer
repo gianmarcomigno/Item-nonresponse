@@ -141,6 +141,9 @@ set.seed(42) # Meaning of life: 42
 #PNA_pruned2_train <- PNA_pruned2[PNA_pruned2_train_ind, ] # EFA
 #PNA_pruned2_test <- PNA_pruned2[-PNA_pruned2_train_ind, ] # CFA
 
+# Convert to numeric for EFA
+PNA_pruned2  <- as.data.frame(apply(PNA_pruned2, 2, as.numeric))
+
 # Order the factors for CFA
 PNA_pruned2  <- as.data.frame(apply(PNA_pruned2, 2, as.factor))
 PNA_pruned2 <- plyr::catcolwise( function(v) ordered(v, levels = c(0, 1, 2, 3)))(PNA_pruned2)
