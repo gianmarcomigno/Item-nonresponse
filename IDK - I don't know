@@ -24,7 +24,31 @@ alldata2 <- as.data.frame(ifelse(alldata2==-1,1,0))
 
 
 
+col_names_IDK <- c("f.21000.0.0", "f.6139.0.0", "branch_34", "branch_37", "branch_39", "f.1100.0.0", "f.2277.0.0", 
+                   "f.1110.0.0","f.1031.0.0","f.1170.0.0","f.1220.0.0","f.1548.0.0","f.1180.0.0","f.1210.0.0",
+                   "branch_38", "branch_33", "branch_48", "branch_41", "branch_40",  
+                   "f.1747.0.0","f.699.0.0","f.1677.0.0","branch_44", 
+                   "f.1737.0.0", "f.1757.0.0", "f.1717.0.0", "f.1727.0.0", "branch_18",
+                   "f.1950.0.0","f.1980.0.0","f.2000.0.0","f.2040.0.0","f.1940.0.0",
+                   "branch_22", "f.2020.0.0","f.2030.0.0","branch_17","f.2080.0.0","branch_12","f.2110.0.0",
+                   "f.2178.0.0", 'f.2306.0.0', 'f.2316.0.0', 'f.2335.0.0','f.2345.0.0','f.2443.0.0',
+                   'f.2453.0.0', 'f.2463.0.0',"f.2492.0.0","f.6154.0.0","f.2247.0.0",
+                   "f.2188.0.0", "f.2473.0.0", "f.6146.0.0", "f.1767.0.0","f.2267.0.0")
 
+labels_IDK <- c("Ethnic background", "Gas or solid-fuel cooking/heating", "Physical Activities", "Time spent outdoors", "Time spent driving/using PC", 
+                "Drive faster than motorway speed limit", "Frequency of solarium/sunlamp use", "Length of mobile phone use", "Frequency of friend/family visits", "Getting up in morning",
+                "Daytime dozing / sleeping (narcolepsy)", "Variation in diet", "Morning/evening person (chronotype)", "Snoring", "Fruit/Vegetable intake",
+                "Fish and meat intake", "Milk and spread type", "Cereal/Bread and Coffee/Tea intake", "Time spent watching TV and sleep duration",
+                "Hair colour (natural, before greying)", "Length of time at current address", "Breastfed as a baby",
+                "Comparative body/height size at age 10", "Childhood sunburn occasions", "Facial ageing", "Skin colour",
+                "Ease of skin tanning", "Fed-up feelings and mood swings", "Sensitivity / hurt feelings", "Worrier / anxious feelings", 
+                "Worry too long after embarrassment", "Risk taking", "Irritability", "Nervous and tense feelings", "Loneliness, isolation",
+                "Guilty feelings", "Frequency of unenthusiasm/tenseness feelings", "Frequency of tiredness / lethargy in last 2 weeks", "Seen a doctor or psychiatrist fro nerves, anxiety or depression",
+                "Able to confide", "Overall health rating", "Weight change compared with 1 year ago", "Wheeze or whistling in the chest in last year", "Chest pain or discomfort",
+                "Ever had bowel cancer screening", "Diabetes diagnosed by doctor", "Cancer diagnosed by doctor", "Fractured/broken bones in last 5 years", "Taking other prescription medications",
+                "Medication for pain relief, constipation, heartburn", "Hearing difficulty/problems", "Long-standing illness, disability or infirmity", 
+                "Other serious medical condition/disability diagnosed by doctor", 
+                "Attendance/disability/mobility allowance", "Adopted as a child", "Use of sun/uv protection")
 
 ########################################################
 #                    BEFORE PRUNING                    #
