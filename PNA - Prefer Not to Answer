@@ -14,29 +14,12 @@ alldata1 <- alldata %>% select(-f.userId, -f.54.0.0, -f.2129.0.0) %>%
 
 # plot cluster dendrogram on tetrachoric correlation matrix
 alldata1_tetra_corr <- tetrachoric(alldata1)$rho
-colnames(alldata1_tetra_corr) <- rownames(alldata1_tetra_corr)  <- c("Ethnic background", "Cooking/heating system", "Physical Activities", "Time spent outdoors", "Time spent driving/using PC", 
-                                                                     "Speeding on motorway", "Frequency of sunlamp use", "Mobile phone use", "Frequency of visits", "Getting up in the morning",
-                                                                     "Narcolepsy", "Variation in diet", "Chronotype", "Snoring", "Vegetables intake",
-                                                                     "Fish/meat intake", "Dairy type", "Cereal and Coffee/Tea intake", "Time spent watching TV/sleeping",
-                                                                     "Hair colour", "Time at current address", "Breastfed as a baby",
-                                                                     "Comparative body/height size", "Childhood sunburn occasions", "Facial ageing", "Skin colour",
-                                                                     "Ease of skin tanning", "Mood swings", "Sensitivity feelings", "Anxious feelings", 
-                                                                     "Worry after embarrassment", "Risk taking", "Irritability", "Nervous/tense feelings", "Loneliness and isolation",
-                                                                     "Guilty feelings", "Unenthusiasm/tenseness feelings", "Frequency of tiredness/lethargy", "Seen a psychiatrist",
-                                                                     "Able to confide", "Overall health rating", "Weight change in last year", "Wheeze in the chest", "Chest pain",
-                                                                     "Bowel cancer screening", "Diabetes diagnosed by MD", "Cancer diagnosed by MD", "Fractured/broken bones", "Taking prescription medications",
-                                                                     "Medication for pain relief", "Hearing difficulty/problems", "Long-standing illness/infirmity", 
-                                                                     "Medical conditions diagnosed", 
-                                                                     "Disability/mobility allowance", "Adopted as a child", "Use of UV protection")
-s <- c("Smoking status","Ethnic background","Current accomodation","Current employment status","Qualifications",
-       "Physical activity", "Frequency of visits", "Social activities", "Time spent outdoors/watching TV", "Time spent driving/using PC",
-       "Speeding on motorway", "Mobile phone use", "Sleep quality", "Chronotype", "Snoring",
-       "Vegetables intake", "Food and alcohol intake", "Never eat processed food", "Major dietary changes", "Person-specific information",
-       "Childhood sunburn and facial ageing", "Skin color", "Depression/neuroticism feelings", "Unenthusiasm/tenseness feelings", "Seen a psychiatrist",
-       "Able to confide", "Mouth/teeth problems", "Overall health status", "Long-standing illness/infirmity", "Disability/mobility allowance",
-       "Eye problems", "Frequency of sunlamp use", "Falls in the last year", "Illness/injury in last 2 years", "Pain experienced recently",
-       "Hearth and lungs problems", "Dietary supplements")
-
+colnames(alldata1_tetra_corr) <- rownames(alldata1_tetra_corr)  <- c("...
+....
+....
+....
+....
+....")
 plot(hclust(dist(alldata1_tetra_corr)), cex=0.62, xlab=NA, 
      main = "Cluster Dendrogram on tetrachoric correlation matrix")
 
@@ -44,23 +27,6 @@ plot(hclust(dist(alldata1_tetra_corr)), cex=0.62, xlab=NA,
 interactive_matrix(get_lower_tri(alldata1_tetra_corr), 
                    scale= 'Tetrachoric correlation', main = 'Prefer Not to Answer tetrachoric correlation')
 
-# colnames and labels
-column_names <- c("branch_31","f.21000.0.0","branch_3","f.6142.0.0","f.6138.0.0",
-                  "branch_4", "f.1031.0.0", "f.6160.0.0", "branch_9", "branch_6",
-                  "f.1100.0.0", "f.1110.0.0", "branch_33", "f.1180.0.0", "f.1210.0.0",
-                  "branch_34", "branch_35", "f.6144.0.0", "f.1538.0.0", "branch_30",
-                  "branch_32", "branch_29", "branch_14", "branch_13", "branch_16",
-                  "f.2110.0.0", "f.6149.0.0", "branch_27", "f.2188.0.0", "f.6146.0.0",
-                  "branch_22", "f.2277.0.0", "f.2296.0.0", "f.6145.0.0", "f.6159.0.0",
-                  "branch_23", "branch_21")
-labels <- c("Smoking status","Ethnic background","Type of accommodation and lenght at current address","Current employment status","Qualifications",
-            "Physical activity", "Frequency of friend/family visits", "Leisure/social activities", "Time spent outdoors or watching TV", "Time spent using PC or driving",
-            "Drive faster than motorway speed limit", "Length of mobile phone use", "Sleep quality and duration", "Morning/evening person", "Snoring",
-            "Fruit and vegetable intake", "Diet, food and alcohol intake", "Never eat eggs, dairy, wheat, sugar", "Major dietary changes in the last 5 years", "Person-specific information: adopted, handedness, hair color",
-            "Childhood sunburn occasions and facial ageing", "Skin color and ease of skin tanning", "Depression/neuroticism feelings", "Frequency od depressed mood/unenthusiasm/tenseness", "Seen a psychiatrist or GP for nerves, anxiety, tension or depression",
-            "Able to confide", "Mouth/teeth dental problems", "Overall health status", "Long-standing illness, disability or infirmity", "Attendance/disability/mobility allowance",
-            "Wears glasses and eye problems", "Frequency of solarium/sunlamp use", "Falls in the last year", "Illness, injury, bereavement, stress in last 2 years", "Pain type(s) experienced in last month",
-            "Hearth and lungs problems", "Vitamin and dietary supplements")
 
 ########################################################
 #                    BEFORE PRUNING                    #
@@ -125,6 +91,24 @@ PNA_pruned1 <- as.data.frame(
         a$f.6159.0.0,
         a$f.6150.0.0 + a$f.6152.0.0,
         a$f.6155.0.0 + a$f.6179.0.0))
+        
+# colnames and labels
+column_names <- c("branch_31","f.21000.0.0","branch_3","f.6142.0.0","f.6138.0.0",
+                  "branch_4", "f.1031.0.0", "f.6160.0.0", "branch_9", "branch_6",
+                  "f.1100.0.0", "f.1110.0.0", "branch_33", "f.1180.0.0", "f.1210.0.0",
+                  "branch_34", "branch_35", "f.6144.0.0", "f.1538.0.0", "branch_30",
+                  "branch_32", "branch_29", "branch_14", "branch_13", "branch_16",
+                  "f.2110.0.0", "f.6149.0.0", "branch_27", "f.2188.0.0", "f.6146.0.0",
+                  "branch_22", "f.2277.0.0", "f.2296.0.0", "f.6145.0.0", "f.6159.0.0",
+                  "branch_23", "branch_21")
+labels <- c("Smoking status","Ethnic background","Type of accommodation and lenght at current address","Current employment status","Qualifications",
+            "Physical activity", "Frequency of friend/family visits", "Leisure/social activities", "Time spent outdoors or watching TV", "Time spent using PC or driving",
+            "Drive faster than motorway speed limit", "Length of mobile phone use", "Sleep quality and duration", "Morning/evening person", "Snoring",
+            "Fruit and vegetable intake", "Diet, food and alcohol intake", "Never eat eggs, dairy, wheat, sugar", "Major dietary changes in the last 5 years", "Person-specific information: adopted, handedness, hair color",
+            "Childhood sunburn occasions and facial ageing", "Skin color and ease of skin tanning", "Depression/neuroticism feelings", "Frequency od depressed mood/unenthusiasm/tenseness", "Seen a psychiatrist or GP for nerves, anxiety, tension or depression",
+            "Able to confide", "Mouth/teeth dental problems", "Overall health status", "Long-standing illness, disability or infirmity", "Attendance/disability/mobility allowance",
+            "Wears glasses and eye problems", "Frequency of solarium/sunlamp use", "Falls in the last year", "Illness, injury, bereavement, stress in last 2 years", "Pain type(s) experienced in last month",
+            "Hearth and lungs problems", "Vitamin and dietary supplements")
 colnames(PNA_pruned1) <- column_names
 
 # split in 4 bins: 0, 1, 2: [2,n-1], 3: n PNAs for 4+ items
