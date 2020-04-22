@@ -8,7 +8,7 @@
 # import all data
 alldata <- readRDS('alldata.rds', refhook = NULL)
 
-# select only those with the pna option
+# select only those with the PNA option
 alldata1 <- alldata %>% select(-f.userId, -f.54.0.0, -f.2129.0.0) %>%
   mutate_all(funs(ifelse(.==-3,1,0)))
 
@@ -23,7 +23,6 @@ colnames(alldata1_tetra_corr) <- rownames(alldata1_tetra_corr)  <- c("...
 plot(hclust(dist(alldata1_tetra_corr)), cex=0.62, xlab=NA, 
      main = "Cluster Dendrogram on tetrachoric correlation matrix")
 
-# heatmap tetrachoric correlation
 interactive_matrix(get_lower_tri(alldata1_tetra_corr), 
                    scale= 'Tetrachoric correlation', main = 'Prefer Not to Answer tetrachoric correlation')
 
@@ -102,7 +101,7 @@ labels <- c("Smoking status","Ethnic background","Type of accommodation and leng
             "Hearth and lungs problems", "Vitamin and dietary supplements")
 colnames(PNA_pruned1) <- column_names
 
-# split in 4 bins: 0, 1, 2: [2,n-1], 3: n PNAs for 4+ items
+# second step pruning (PNA only): split in 4 bins: 0, 1, 2: [2,n-1], 3: n PNAs for 4+ items
 for(i in c("branch_33", "branch_34", "branch_35", "branch_30", "branch_14", "branch_13", "branch_27")){
   PNA_pruned1[,i] <- ifelse(PNA_pruned1[,i] == max(as.numeric(names(table(PNA_pruned1[,i])))), 'n', PNA_pruned1[,i])}
 PNA_pruned2 <- as.data.frame(apply(PNA_pruned1, 2, function(x) {car::recode(x, "'0'= 0; '1'= 1; 'n'= 3; else= 2")}))
