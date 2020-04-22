@@ -1,3 +1,153 @@
+########################################################
+#                 USEFUL FUNCTIONS                     #
+########################################################
+
+# Create interactive plots (Correlation matrix, residuals..) - Heatmap
+interactive_matrix <- function(matr, main = 'Interactive Matrix', scale = 'Scale'){
+  library(reshape2)
+  library(ggplot2)
+  library(plotly)
+  
+  reorder_cormat <- function(cormat){
+    dd <- as.dist((1-cormat)/2)
+    hc <- hclust(dd)
+    cormat <-cormat[hc$order, hc$order]}
+ 
+  cormat <- reorder_cormat(matr)
+  
+  # remove if want full matrix
+  get_lower_tri<-function(cormat){
+    cormat[upper.tri(cormat)] <- NA
+    return(cormat)}
+  #lower_tri <- get_lower_tri(cormat)
+  #melted_cormat <- melt(lower_tri, na.rm = TRUE)
+  
+  melted_cormat <- melt(cormat, na.rm = TRUE) #use for full matrix
+  
+  ggheatmap1 <- ggplot(melted_cormat, aes(Var2, Var1, fill = value))+
+    geom_tile(color = "white")+
+    scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                         midpoint = 0, limit = c(-1,1), space = "Lab", 
+                         name=scale) +
+    #scale_fill_gradient2(low = "white", high = "red", 
+    #                     limit = c(0,1),
+    #                     name=scale) +
+    theme(axis.text.x= element_blank()) +
+    theme(axis.text.y = element_blank()) +
+    labs(title= main)
+  
+  return(ggplotly(ggheatmap1))
+}
+
+# Read in results genetic correlation rg (without c(2734, 2774, 2784, 20001_1002) since not found) and merge with heritable variables info
+out_matrix_rg <- function(name_file){
+  library(plyr)
+  matrix <- read.csv(file=name_file, header=TRUE, sep=",")
+  heritable_var <- read.csv("ukb31063_h2part_z4_reduced.csv", header=TRUE)
+ 
+  heritable_var_sub <- heritable_var[,c("phenotype","description")]
+  matrix_sub <- matrix[,c("p2","rg","z","p")]
+  colnames(matrix_sub) <- c("phenotype","rg","z","p")
+  # Prepare name for join
+  matrix_sub$phenotype <- gsub('"',"",gsub('^.|.$', '', gsub('^.*pheno\\s*|\\s*ldsc.*$', '', matrix_sub$phenotype)))
+  
+  join1 <- join(matrix_sub,heritable_var_sub,by="phenotype",type = "left")
+  #join2 <- join1[order(join1$rg, decreasing = T),]
+}
+
+# Manhattan plot
+manhattan_plot <- function(name_file, col = c("gray10", "gray60"), title='title'){
+  library(plyr)
+  library(qqman)
+  rsid <- read.table(file = 'rsid.tsv.bgz', sep = '\t', header = TRUE)
+  gwas1 <- read.table(file = name_file, sep = '\t', header = TRUE)
+  
+  #gwas1[gwas1$pval<5e-06,] # SNPs significative
+  colnames(gwas1) <- c("rsid",  "A1",   "A2",   "N",    "Z",    "beta", "se",   "pval")
+  gwas_exp <- join(gwas1,rsid,by="rsid",type = "left")
+  
+  BP <- as.numeric(as.character(gsub(".*:","",as.character(gwas_exp$locus))))
+  CHR <- as.numeric(as.character(gsub(":.*","",as.character(gwas_exp$locus))))
+  
+  gwas_exp_1 <- as.data.frame(cbind(cbind(BP, CHR), as.numeric(as.character(gwas_exp$pval)), as.character(gwas_exp$rsid)))
+  gwas_exp_1 <- as.data.frame(cbind(as.numeric(BP), as.numeric(CHR), as.numeric(as.character(gwas_exp$pval)), as.character(gwas_exp$rsid)))
+  
+  colnames(gwas_exp_1) <- c("BP", "CHR", "P", "SNP")
+  gwas_exp_1$CHR <- as.numeric(as.character(gwas_exp_1$CHR))
+  gwas_exp_1$BP <- as.numeric(as.character(gwas_exp_1$BP))
+  gwas_exp_1$P <- as.numeric(as.character(gwas_exp_1$P))
+  #head(gwas_exp_1)
+  
+  h <- gwas_exp_1 %>% filter(-log10(P)>1)
+  #col = colors()[grep("green",colors())]
+  #col = sort(colors()[grep("sky",colors())])
+  #col = c("springgreen4", "darkolivegreen", "forestgreen","yellowgreen"))
+  #col= c("#C7E9C0", "#A1D99B", "#74C476", "#41AB5D", "#238B45", "#006D2C", "#00441B")) 
+  qqman::manhattan(h, chr="CHR", bp="BP", p="P", snp = "SNP",suggestiveline = F, 
+                   annotatePval = 5e-8, col = col, title=title)
+} 
+
+########################################################
+#         COMPARE UNADJUSTED AND ADJUSTED rg           #
+########################################################
+# read in file to make volcano plot with unadjusted rg
+install.packages("ggrepel")
+install.packages("gridExtra")
+install.packages("grid")
+install.packages("ggplot2")
+
+library(grid)
+library(ggrepel)
+library("gridExtra")
+library(ggplot2)
+
+pna_idk <- read.csv("pna_idk_comparison.csv")
+names(pna_idk$Traits[c(6,31, 17, 13)]) <- c("Educational Attainment", "Loneliness", "Low self rated health", " Schizophrenia")
+levels(pna_idk$Traits)[c(16,22,36,30)] <- c("Educational Attainment", "Loneliness", "Low self rated health", " Schizophrenia")
+
+
+# WARNING (no correct colnames): pna adj it's in fact unadj, for idk it's correct
+ggplot(pna_idk, aes(x=rg_pna_unadj, y=-log10(pvalue_rg_pna_unadj))) +
+  geom_point(aes(x=rg_pna_unadj, y=-log10(pvalue_rg_pna_unadj)))
+
+limits <- c(-100,85)
+breaks <- seq(limits[1], limits[2], by=20)
+
+p1 <- ggplot(pna_idk, aes(x=rg_pna_adj, y=-log10(pvalue_rg_pna_adj), size=1.8)) +
+  geom_point() +
+  xlim(limits=c(-.55,.55)) +
+  ylim(limits=c(0,90)) +
+  theme_bw() +
+  xlab("Genetic correlation PNA") + ylab("-Log10(p-value)") +
+  theme (legend.position = "none",
+         axis.text=element_text(size=11), 
+         axis.title=element_text(size=14,face="bold")) +
+  geom_text_repel(data = subset(pna_idk, -log10(pvalue_rg_pna_adj)>20 | -log10(pvalue_rg_pna_adj) > 9.459 & -log10(pvalue_rg_pna_adj) < 9.46),
+                    aes(rg_pna_adj,-log10(pvalue_rg_pna_adj),label=Traits),
+                    nudge_y = 10,
+                    direction = "x")
+    
+p2 <- ggplot(pna_idk, aes(x=rg_idk_unadj, y=-log10(pvalue_rg_idk_unadj),  size=1.8)) +
+  geom_point() +
+  theme_bw() +
+  xlim(limits=c(-.55,.55)) +
+  ylim(limits=c(0,90)) +
+  xlab("Genetic correlation IDK") + ylab("-Log10(p-value)") +
+  theme (legend.position = "none",
+         axis.text=element_text(size=11), 
+         axis.title=element_text(size=14,face="bold")) +
+      geom_text_repel(data = subset(pna_idk, -log10(pvalue_rg_idk_unadj)>22 | -log10(pvalue_rg_idk_unadj) > 0.24 & -log10(pvalue_rg_idk_unadj) < 0.25),
+                  aes(rg_pna_adj,-log10(pvalue_rg_idk_unadj),label=Traits),
+                  nudge_y =-1,
+                  direction = "x")
+
+grid.arrange(p1, p2, ncol=2, top = textGrob("Genetic correlation IDK/PNA with other traits",
+                                           gp=gpar(fontsize=20,font=2)))
+
+
+
+#---------------------------------------------------------------------
+
 ################################################################
 # figure_pna_idk_items
 ################################################################
