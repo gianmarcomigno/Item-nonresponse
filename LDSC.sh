@@ -7,7 +7,7 @@
 ########################################################
 #                GENETIC CORRELATION                   #
 ########################################################
-
+# Reference: https://github.com/bulik/ldsc/wiki/Heritability-and-Genetic-Correlation
 
 
 
