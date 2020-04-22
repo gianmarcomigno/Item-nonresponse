@@ -37,12 +37,13 @@ fa1 <- fa(r= alldata1_tetra_corr,nfactors=1,fm="ols", n.obs=nrow(alldata1),rotat
 # heatmap residuals 1 factor fa():
 interactive_matrix(fa1$residual, scale= 'Residuals intensity', main = 'Heatmap residuals 1 factor FA - PNA')
 
-# dendrogram cluster residuals' distance - cut at height 0.500
-rownames(fa1$residual) <- colnames(fa1$residual) <- substr(lab_vec[match(colnames(fa1$residual), paste0("f.",lab_vec$FieldID,".0.0")),]$Field,0, 25)
+# dendrogram cluster residuals' distance - cut at height 0.500 for pruning
+#rownames(fa1$residual) <- colnames(fa1$residual) <- substr(lab_vec[match(colnames(fa1$residual), paste0("f.",lab_vec$FieldID,".0.0")),]$Field,0, 25)
 plot(hclust(dist(fa1$residual)), cex=0.62, xlab=NA, main = "Cluster Dendrogram on residuals from FA with 1 factor")
 abline(h=.5, col= "red", lty = 4)
 plot(cut(as.dendrogram(hclust(dist(1-fa1$residual))), h=.5)$upper, main="Upper tree of cut at h=0.5")
 plot(cut(as.dendrogram(hclust(dist(1-fa1$residual))), h=.5)$lower[[2]], main="Second branch of lower tree with cut at h=.5")
+
 
 ########################################################
 #                     PRUNING                          #
@@ -106,6 +107,7 @@ for(i in c("branch_33", "branch_34", "branch_35", "branch_30", "branch_14", "bra
   PNA_pruned1[,i] <- ifelse(PNA_pruned1[,i] == max(as.numeric(names(table(PNA_pruned1[,i])))), 'n', PNA_pruned1[,i])}
 PNA_pruned2 <- as.data.frame(apply(PNA_pruned1, 2, function(x) {car::recode(x, "'0'= 0; '1'= 1; 'n'= 3; else= 2")}))
 
+
 ########################################################
 #                  FACTOR ANALYSIS                     #
 ########################################################
@@ -165,9 +167,9 @@ inspect(fit_cfa_PNA,what="std")$lambda
 summary(fit_cfa_PNA,fit.measures=TRUE)
 fitMeasures(fit_cfa_PNA)
 
-# Extraction factor scores: EBA method
+# extraction factor scores: EBA method
 factscores_PNA <- lavPredict(fit_cfa_PNA)
-saveRDS(factscores_PNA, file = "factscores_PNA.rds")
+#saveRDS(factscores_PNA, file = "factscores_PNA.rds")
 factscores_PNA <- as.data.frame(readRDS(file = "factscores_PNA.rds"))
 factors_name <- c("general", "Social status", "Overall health", "Ethnicity", "Depression")
 colnames(factscores_PNA) <- factors_name
