@@ -71,9 +71,6 @@ colnames(alldata) <- lab_vec[match(colnames(alldata), paste0("f.",lab_vec$FieldI
 # Type: C = Categorical, O = Ordinal, N = Numeric Integer. Multiple Instances: 1 = yes, 0 = no. Progressive.code: code in the survey
 vars_info <- read.table(file = 'vars_info.tsv', sep = '\t', header = TRUE)
 
-
-
-
 # ---------------------------------
 
 
