@@ -1,21 +1,4 @@
 ########################################################
-#                                                      #
-#                LD SCORE REGRESSION                   #
-#                                                      #
-########################################################
-
-########################################################
-#                GENETIC CORRELATION                   #
-########################################################
-# Reference: https://github.com/bulik/ldsc/wiki/Heritability-and-Genetic-Correlation
-
-
-
-
-
-
-
-########################################################
 #            CELL TYPE SPECIFIC ANALYSES               #
 ########################################################
 # Reference: https://github.com/bulik/ldsc/wiki/Cell-type-specific-analyses
